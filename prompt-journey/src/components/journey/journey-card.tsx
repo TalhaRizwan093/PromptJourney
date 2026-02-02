@@ -1,4 +1,8 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -11,59 +15,97 @@ import {
   Bookmark,
   Share2,
   Trophy,
-  Sparkles,
 } from "lucide-react";
 import { cn, formatRelativeTime } from "@/lib/utils";
+import type { Journey } from "@/lib/hooks";
 
 interface JourneyCardProps {
-  journey: {
+  journey: Journey | {
     id: string;
     title: string;
     description: string;
-    tags: string[];
+    tags: string | string[];
     voteCount: number;
     viewCount: number;
     commentCount: number;
     createdAt: Date | string;
     author: {
-      name: string;
-      image?: string;
+      id?: string;
+      name: string | null;
+      image?: string | null;
     };
     award?: {
-      type: "daily" | "weekly" | "monthly";
-      rank: 1 | 2 | 3;
-    };
+      type: string;
+      rank: number;
+    } | null;
+    userVote?: number | null;
   };
   compact?: boolean;
 }
 
-const awardColors = {
+const awardColors: Record<number, "gold" | "silver" | "bronze"> = {
   1: "gold",
   2: "silver",
   3: "bronze",
-} as const;
+};
 
-const awardLabels = {
+const awardLabels: Record<string, string> = {
   daily: "Daily",
   weekly: "Weekly",
   monthly: "Monthly",
 };
 
 export function JourneyCard({ journey, compact = false }: JourneyCardProps) {
+  const { data: session } = useSession();
+  const [voteCount, setVoteCount] = useState(journey.voteCount);
+  const [userVote, setUserVote] = useState<number | null>(journey.userVote ?? null);
+  const [isVoting, setIsVoting] = useState(false);
+
+  // Parse tags - handle both string and array formats
+  const tags = typeof journey.tags === "string" 
+    ? journey.tags.split(",").filter(Boolean)
+    : journey.tags;
+
+  const handleVote = async (value: 1 | -1) => {
+    if (!session) {
+      window.location.href = "/login";
+      return;
+    }
+
+    setIsVoting(true);
+    try {
+      const res = await fetch(`/api/journeys/${journey.id}/vote`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ value }),
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        setVoteCount(data.voteCount);
+        setUserVote(data.userVote);
+      }
+    } catch (error) {
+      console.error("Vote failed:", error);
+    } finally {
+      setIsVoting(false);
+    }
+  };
+
   return (
     <Card className={cn(
       "group relative overflow-hidden",
       journey.award && "ring-2 ring-yellow-500/30"
     )}>
       {/* Gradient accent on hover */}
-      <div className="absolute inset-0 bg-gradient-to-r from-violet-600/5 to-indigo-600/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+      <div className="absolute inset-0 bg-linear-to-r from-violet-600/5 to-indigo-600/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
       
       {/* Award badge */}
       {journey.award && (
         <div className="absolute top-4 right-4">
-          <Badge variant={awardColors[journey.award.rank]} className="flex items-center gap-1">
+          <Badge variant={awardColors[journey.award.rank] || "secondary"} className="flex items-center gap-1">
             <Trophy className="h-3 w-3" />
-            {awardLabels[journey.award.type]} #{journey.award.rank}
+            {awardLabels[journey.award.type] || journey.award.type} #{journey.award.rank}
           </Badge>
         </div>
       )}
@@ -71,16 +113,38 @@ export function JourneyCard({ journey, compact = false }: JourneyCardProps) {
       <div className="flex">
         {/* Vote Column */}
         <div className="flex flex-col items-center gap-1 p-4 border-r border-zinc-800">
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-500 hover:text-violet-400 hover:bg-violet-500/10">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className={cn(
+              "h-8 w-8 transition-colors",
+              userVote === 1 
+                ? "text-violet-400 bg-violet-500/20" 
+                : "text-zinc-500 hover:text-violet-400 hover:bg-violet-500/10"
+            )}
+            onClick={() => handleVote(1)}
+            disabled={isVoting}
+          >
             <ArrowUp className="h-5 w-5" />
           </Button>
           <span className={cn(
-            "text-sm font-bold",
-            journey.voteCount > 0 ? "text-violet-400" : journey.voteCount < 0 ? "text-red-400" : "text-zinc-500"
+            "text-sm font-bold tabular-nums",
+            voteCount > 0 ? "text-violet-400" : voteCount < 0 ? "text-red-400" : "text-zinc-500"
           )}>
-            {journey.voteCount}
+            {voteCount}
           </span>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-500 hover:text-red-400 hover:bg-red-500/10">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className={cn(
+              "h-8 w-8 transition-colors",
+              userVote === -1 
+                ? "text-red-400 bg-red-500/20" 
+                : "text-zinc-500 hover:text-red-400 hover:bg-red-500/10"
+            )}
+            onClick={() => handleVote(-1)}
+            disabled={isVoting}
+          >
             <ArrowDown className="h-5 w-5" />
           </Button>
         </div>
@@ -90,12 +154,17 @@ export function JourneyCard({ journey, compact = false }: JourneyCardProps) {
           <CardHeader className="pb-2">
             <div className="flex items-center gap-2 mb-2">
               <Avatar className="h-6 w-6">
-                <AvatarImage src={journey.author.image} />
+                <AvatarImage src={journey.author.image || undefined} />
                 <AvatarFallback className="text-xs">
-                  {journey.author.name.charAt(0)}
+                  {journey.author.name?.charAt(0) || "?"}
                 </AvatarFallback>
               </Avatar>
-              <span className="text-sm text-zinc-400">{journey.author.name}</span>
+              <Link 
+                href={journey.author.id ? `/profile/${journey.author.id}` : "#"}
+                className="text-sm text-zinc-400 hover:text-violet-300 transition-colors"
+              >
+                {journey.author.name || "Anonymous"}
+              </Link>
               <span className="text-zinc-600">•</span>
               <span className="text-sm text-zinc-500">
                 {formatRelativeTime(journey.createdAt)}
@@ -118,15 +187,15 @@ export function JourneyCard({ journey, compact = false }: JourneyCardProps) {
 
           <CardFooter className="pt-2 flex items-center justify-between">
             <div className="flex items-center gap-2 flex-wrap">
-              {journey.tags.slice(0, 3).map((tag) => (
-                <Link key={tag} href={`/tag/${tag}`}>
+              {tags.slice(0, 3).map((tag) => (
+                <Link key={tag} href={`/journeys?tag=${encodeURIComponent(tag.trim())}`}>
                   <Badge variant="secondary" className="text-xs hover:bg-zinc-700 transition-colors">
-                    {tag}
+                    {tag.trim()}
                   </Badge>
                 </Link>
               ))}
-              {journey.tags.length > 3 && (
-                <span className="text-xs text-zinc-500">+{journey.tags.length - 3}</span>
+              {tags.length > 3 && (
+                <span className="text-xs text-zinc-500">+{tags.length - 3}</span>
               )}
             </div>
 
@@ -155,6 +224,10 @@ export function JourneyCard({ journey, compact = false }: JourneyCardProps) {
 
 // Compact version for sidebar/lists
 export function JourneyCardCompact({ journey }: { journey: JourneyCardProps["journey"] }) {
+  const tags = typeof journey.tags === "string" 
+    ? journey.tags.split(",").filter(Boolean)
+    : journey.tags;
+
   return (
     <Link href={`/journeys/${journey.id}`} className="block group">
       <div className="flex items-start gap-3 p-3 rounded-xl hover:bg-zinc-800/50 transition-all duration-200">
@@ -172,7 +245,7 @@ export function JourneyCardCompact({ journey }: { journey: JourneyCardProps["jou
             {journey.title}
           </h4>
           <p className="text-xs text-zinc-500 mt-1">
-            {journey.author.name} • {formatRelativeTime(journey.createdAt)}
+            {journey.author.name || "Anonymous"} • {formatRelativeTime(journey.createdAt)}
           </p>
         </div>
         {journey.award && (

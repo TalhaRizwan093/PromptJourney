@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -30,7 +31,9 @@ interface JourneyStep {
 
 export default function NewJourneyPage() {
   const router = useRouter();
+  const { data: session, status } = useSession();
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [tagInput, setTagInput] = useState("");
@@ -75,13 +78,61 @@ export default function NewJourneyPage() {
   };
 
   const handleSubmit = async (publish: boolean = false) => {
+    if (!session) {
+      router.push("/login");
+      return;
+    }
+
     setIsLoading(true);
-    // TODO: Implement actual submission to API
-    setTimeout(() => {
+    setError("");
+
+    try {
+      const res = await fetch("/api/journeys", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title,
+          description,
+          content: JSON.stringify(steps),
+          tags: tags.join(","),
+          published: publish,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to create journey");
+      }
+
+      const journey = await res.json();
+      router.push(`/journeys/${journey.id}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
       setIsLoading(false);
-      router.push("/journeys");
-    }, 1500);
+    }
   };
+
+  if (status === "loading") {
+    return (
+      <div className="container mx-auto px-4 py-16 flex justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-violet-500" />
+      </div>
+    );
+  }
+
+  if (!session) {
+    return (
+      <div className="container mx-auto px-4 py-16 text-center">
+        <Sparkles className="h-16 w-16 mx-auto mb-4 text-zinc-600" />
+        <h1 className="text-2xl font-bold text-zinc-100 mb-2">Sign In Required</h1>
+        <p className="text-zinc-400 mb-6">You need to be signed in to create a journey.</p>
+        <Link href="/login">
+          <Button variant="glow">Sign In</Button>
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
@@ -121,6 +172,13 @@ export default function NewJourneyPage() {
           </Button>
         </div>
       </div>
+
+      {/* Error */}
+      {error && (
+        <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+          {error}
+        </div>
+      )}
 
       {/* Main Form */}
       <div className="space-y-6">

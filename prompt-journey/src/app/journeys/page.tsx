@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import { JourneyCard } from "@/components/journey/journey-card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,88 +14,49 @@ import {
   Search,
   Filter,
   PlusCircle,
+  Loader2,
 } from "lucide-react";
 import Link from "next/link";
+import { useJourneys } from "@/lib/hooks";
 
-// Mock data - will be replaced with real database queries
-const mockJourneys = [
-  {
-    id: "1",
-    title: "Building a Full SaaS App with Claude in 4 Hours",
-    description: "My journey of using AI prompts to build a complete subscription-based SaaS application, from database design to deployment.",
-    tags: ["coding", "saas", "claude", "nextjs"],
-    voteCount: 342,
-    viewCount: 1250,
-    commentCount: 47,
-    createdAt: new Date(Date.now() - 3600000 * 2),
-    author: { name: "Alex Chen" },
-    award: { type: "daily" as const, rank: 1 as const },
-  },
-  {
-    id: "2",
-    title: "From Idea to MVP: AI-Powered Content Calendar",
-    description: "How I used a series of prompts to design, develop, and launch a content calendar tool.",
-    tags: ["productivity", "chatgpt", "no-code", "business"],
-    voteCount: 289,
-    viewCount: 980,
-    commentCount: 32,
-    createdAt: new Date(Date.now() - 3600000 * 8),
-    author: { name: "Sarah Miller" },
-  },
-  {
-    id: "3",
-    title: "Creating a Brand Identity System with Midjourney + GPT",
-    description: "A complete walkthrough of creating a cohesive brand identity including logo concepts and brand guidelines.",
-    tags: ["design", "branding", "midjourney", "creative"],
-    voteCount: 256,
-    viewCount: 890,
-    commentCount: 28,
-    createdAt: new Date(Date.now() - 3600000 * 12),
-    author: { name: "James Wright" },
-  },
-  {
-    id: "4",
-    title: "Writing a Technical Book with AI Assistance",
-    description: "My 30-day journey of writing a 200-page technical book using AI for research and editing.",
-    tags: ["writing", "education", "books", "productivity"],
-    voteCount: 198,
-    viewCount: 670,
-    commentCount: 19,
-    createdAt: new Date(Date.now() - 3600000 * 24),
-    author: { name: "Emily Zhang" },
-  },
-  {
-    id: "5",
-    title: "Automating My Entire Business Workflow",
-    description: "From customer support to invoicing - how I used AI prompts to automate 80% of operations.",
-    tags: ["automation", "business", "workflow", "efficiency"],
-    voteCount: 176,
-    viewCount: 540,
-    commentCount: 24,
-    createdAt: new Date(Date.now() - 3600000 * 36),
-    author: { name: "Michael Torres" },
-  },
-  {
-    id: "6",
-    title: "Building an E-commerce Store with AI in a Weekend",
-    description: "Complete journey from product research to fully functional store using AI assistance.",
-    tags: ["ecommerce", "business", "coding", "shopify"],
-    voteCount: 145,
-    viewCount: 420,
-    commentCount: 16,
-    createdAt: new Date(Date.now() - 3600000 * 48),
-    author: { name: "Lisa Park" },
-  },
+type SortType = "hot" | "trending" | "new" | "top";
+
+const filterTabs: { label: string; value: SortType; icon: React.ElementType }[] = [
+  { label: "Hot", value: "hot", icon: Flame },
+  { label: "Trending", value: "trending", icon: TrendingUp },
+  { label: "New", value: "new", icon: Clock },
+  { label: "Top", value: "top", icon: Trophy },
 ];
 
-const filterTabs = [
-  { label: "Hot", icon: Flame, active: true },
-  { label: "Trending", icon: TrendingUp },
-  { label: "New", icon: Clock },
-  { label: "Top", icon: Trophy },
-];
+function JourneyCardSkeleton() {
+  return (
+    <div className="bg-zinc-900/50 rounded-xl border border-zinc-800 p-6 animate-pulse">
+      <div className="flex items-start gap-4">
+        <div className="flex flex-col items-center gap-1">
+          <div className="w-10 h-10 bg-zinc-800 rounded" />
+          <div className="w-6 h-4 bg-zinc-800 rounded" />
+        </div>
+        <div className="flex-1 space-y-3">
+          <div className="h-6 bg-zinc-800 rounded w-3/4" />
+          <div className="h-4 bg-zinc-800 rounded w-full" />
+          <div className="h-4 bg-zinc-800 rounded w-1/2" />
+          <div className="flex gap-2 mt-4">
+            <div className="h-6 w-16 bg-zinc-800 rounded-full" />
+            <div className="h-6 w-20 bg-zinc-800 rounded-full" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function JourneysPage() {
+  const [sort, setSort] = useState<SortType>("hot");
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+
+  const { journeys, total, pages, isLoading, error } = useJourneys({ sort, search, page });
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       {/* Header */}
@@ -122,6 +86,11 @@ export default function JourneysPage() {
             type="search"
             placeholder="Search journeys..."
             className="pl-10"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
           />
         </div>
         <Button variant="outline">
@@ -134,11 +103,16 @@ export default function JourneysPage() {
       <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-2">
         {filterTabs.map((tab) => {
           const Icon = tab.icon;
+          const isActive = sort === tab.value;
           return (
             <button
-              key={tab.label}
+              key={tab.value}
+              onClick={() => {
+                setSort(tab.value);
+                setPage(1);
+              }}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
-                tab.active
+                isActive
                   ? "bg-violet-500/20 text-violet-300 border border-violet-500/30"
                   : "text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
               }`}
@@ -150,35 +124,116 @@ export default function JourneysPage() {
         })}
         <div className="flex-1" />
         <Badge variant="secondary">
-          {mockJourneys.length} journeys
+          {total} {total === 1 ? "journey" : "journeys"}
         </Badge>
       </div>
 
-      {/* Journey List */}
-      <div className="space-y-4">
-        {mockJourneys.map((journey) => (
-          <JourneyCard key={journey.id} journey={journey} />
-        ))}
-      </div>
+      {/* Error State */}
+      {error && (
+        <div className="text-center py-12 text-red-400">
+          Failed to load journeys. Please try again.
+        </div>
+      )}
 
-      {/* Pagination */}
-      <div className="flex items-center justify-center gap-2 mt-8">
-        <Button variant="outline" size="sm" disabled>
-          Previous
-        </Button>
-        <Button variant="outline" size="sm" className="bg-violet-500/20 text-violet-300 border-violet-500/30">
-          1
-        </Button>
-        <Button variant="outline" size="sm">
-          2
-        </Button>
-        <Button variant="outline" size="sm">
-          3
-        </Button>
-        <Button variant="outline" size="sm">
-          Next
-        </Button>
-      </div>
+      {/* Loading State */}
+      {isLoading && (
+        <div className="space-y-4">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <JourneyCardSkeleton key={i} />
+          ))}
+        </div>
+      )}
+
+      {/* Journey List */}
+      {!isLoading && !error && (
+        <>
+          {journeys.length === 0 ? (
+            <div className="text-center py-12">
+              <Sparkles className="h-12 w-12 text-zinc-600 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-zinc-300">No journeys found</h3>
+              <p className="text-zinc-500 mt-1">
+                {search ? "Try a different search term" : "Be the first to share your journey!"}
+              </p>
+              <Link href="/journeys/new">
+                <Button className="mt-4">
+                  <PlusCircle className="h-4 w-4 mr-2" />
+                  Create Journey
+                </Button>
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {journeys.map((journey) => (
+                <JourneyCard
+                  key={journey.id}
+                  journey={{
+                    ...journey,
+                    tags: typeof journey.tags === "string"
+                      ? journey.tags.split(",").filter(Boolean)
+                      : journey.tags || [],
+                    commentCount: journey._count?.comments ?? 0,
+                    createdAt: new Date(journey.createdAt),
+                    award: journey.awards?.[0] ? {
+                      type: journey.awards[0].type as "daily" | "weekly" | "monthly",
+                      rank: journey.awards[0].rank as 1 | 2 | 3,
+                    } : undefined,
+                  }}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Pagination */}
+          {pages > 1 && (
+            <div className="flex items-center justify-center gap-2 mt-8">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page === 1}
+                onClick={() => setPage(page - 1)}
+              >
+                Previous
+              </Button>
+              
+              {Array.from({ length: Math.min(pages, 5) }, (_, i) => {
+                let pageNum: number;
+                if (pages <= 5) {
+                  pageNum = i + 1;
+                } else if (page <= 3) {
+                  pageNum = i + 1;
+                } else if (page >= pages - 2) {
+                  pageNum = pages - 4 + i;
+                } else {
+                  pageNum = page - 2 + i;
+                }
+                
+                return (
+                  <Button
+                    key={pageNum}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(pageNum)}
+                    className={pageNum === page 
+                      ? "bg-violet-500/20 text-violet-300 border-violet-500/30" 
+                      : ""}
+                  >
+                    {pageNum}
+                  </Button>
+                );
+              })}
+              
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page === pages}
+                onClick={() => setPage(page + 1)}
+              >
+                Next
+              </Button>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

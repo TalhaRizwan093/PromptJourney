@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,32 +12,47 @@ interface OneShotCardProps {
     id: string;
     title: string;
     prompt: string;
-    result?: string;
+    result?: string | null;
     category: string;
     copyCount: number;
     author: {
-      name: string;
+      id?: string;
+      name: string | null;
+      image?: string | null;
     };
   };
 }
 
 export function OneShotCard({ oneShot }: OneShotCardProps) {
   const [copied, setCopied] = useState(false);
+  const [copyCount, setCopyCount] = useState(oneShot.copyCount);
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(oneShot.prompt);
     setCopied(true);
+    
+    // Track copy on server
+    try {
+      const res = await fetch(`/api/one-shots/${oneShot.id}/copy`, { method: "POST" });
+      if (res.ok) {
+        const data = await res.json();
+        setCopyCount(data.copyCount);
+      }
+    } catch (error) {
+      console.error("Failed to track copy:", error);
+    }
+    
     setTimeout(() => setCopied(false), 2000);
   };
 
   return (
     <Card className="group relative overflow-hidden">
-      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-500 via-violet-500 to-fuchsia-500" />
+      <div className="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-cyan-500 via-violet-500 to-fuchsia-500" />
       
       <CardContent className="p-5">
         <div className="flex items-start justify-between gap-4 mb-3">
           <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-gradient-to-br from-cyan-500/20 to-violet-500/20">
+            <div className="p-1.5 rounded-lg bg-linear-to-br from-cyan-500/20 to-violet-500/20">
               <Zap className="h-4 w-4 text-cyan-400" />
             </div>
             <Badge variant="outline" className="text-xs">
@@ -72,7 +89,7 @@ export function OneShotCard({ oneShot }: OneShotCardProps) {
           <pre className="text-sm text-zinc-400 bg-zinc-800/50 rounded-xl p-4 overflow-hidden max-h-32">
             <code className="line-clamp-4">{oneShot.prompt}</code>
           </pre>
-          <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-zinc-900 to-transparent" />
+          <div className="absolute bottom-0 left-0 right-0 h-8 bg-linear-to-t from-zinc-900 to-transparent" />
         </div>
 
         {oneShot.result && (
@@ -86,9 +103,14 @@ export function OneShotCard({ oneShot }: OneShotCardProps) {
         )}
 
         <div className="flex items-center justify-between mt-4 pt-3 border-t border-zinc-800">
-          <span className="text-xs text-zinc-500">by {oneShot.author.name}</span>
+          <Link 
+            href={oneShot.author.id ? `/profile/${oneShot.author.id}` : "#"}
+            className="text-xs text-zinc-500 hover:text-violet-300 transition-colors"
+          >
+            by {oneShot.author.name || "Anonymous"}
+          </Link>
           <span className="text-xs text-zinc-500">
-            {oneShot.copyCount} copies
+            {copyCount} copies
           </span>
         </div>
       </CardContent>

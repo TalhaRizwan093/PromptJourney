@@ -54,7 +54,7 @@ export function Sidebar() {
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
                   isActive
-                    ? "bg-gradient-to-r from-violet-500/20 to-indigo-500/20 text-violet-300 border border-violet-500/30"
+                    ? "bg-linear-to-r from-violet-500/20 to-indigo-500/20 text-violet-300 border border-violet-500/30"
                     : "text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/50"
                 )}
               >
@@ -112,7 +112,7 @@ export function Sidebar() {
         </div>
 
         {/* Promo Card */}
-        <div className="mt-6 p-4 rounded-2xl bg-gradient-to-br from-violet-600/20 to-indigo-600/20 border border-violet-500/30">
+        <div className="mt-6 p-4 rounded-2xl bg-linear-to-br from-violet-600/20 to-indigo-600/20 border border-violet-500/30">
           <h3 className="font-semibold text-zinc-100 mb-1">Share Your Journey</h3>
           <p className="text-xs text-zinc-400 mb-3">
             Document your AI adventures and inspire the community!

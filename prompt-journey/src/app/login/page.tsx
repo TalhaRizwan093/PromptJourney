@@ -45,7 +45,7 @@ export default function LoginPage() {
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-12">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 p-3 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 w-fit">
+          <div className="mx-auto mb-4 p-3 rounded-2xl bg-linear-to-br from-violet-600 to-indigo-600 w-fit">
             <Sparkles className="h-8 w-8 text-white" />
           </div>
           <CardTitle className="text-2xl">Welcome back</CardTitle>

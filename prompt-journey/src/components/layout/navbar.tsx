@@ -40,12 +40,12 @@ export function Navbar() {
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 group">
           <div className="relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-violet-600 to-indigo-600 rounded-xl blur-lg opacity-50 group-hover:opacity-75 transition-opacity" />
-            <div className="relative bg-gradient-to-r from-violet-600 to-indigo-600 p-2 rounded-xl">
+            <div className="absolute inset-0 bg-linear-to-r from-violet-600 to-indigo-600 rounded-xl blur-lg opacity-50 group-hover:opacity-75 transition-opacity" />
+            <div className="relative bg-linear-to-r from-violet-600 to-indigo-600 p-2 rounded-xl">
               <Sparkles className="h-5 w-5 text-white" />
             </div>
           </div>
-          <span className="text-xl font-bold bg-gradient-to-r from-violet-400 to-indigo-400 bg-clip-text text-transparent">
+          <span className="text-xl font-bold bg-linear-to-r from-violet-400 to-indigo-400 bg-clip-text text-transparent">
             PromptJourney
           </span>
         </Link>
@@ -196,7 +196,7 @@ export function Navbar() {
               <Link
                 href="/journeys/new"
                 onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium bg-gradient-to-r from-violet-600 to-indigo-600 text-white"
+                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium bg-linear-to-r from-violet-600 to-indigo-600 text-white"
               >
                 <PlusCircle className="h-5 w-5" />
                 New Journey
