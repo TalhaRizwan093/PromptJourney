@@ -95,10 +95,8 @@ export function Navbar() {
                   className="flex items-center gap-2"
                 >
                   <Avatar className="h-9 w-9">
-                    <AvatarImage src={session.user?.image || ""} />
-                    <AvatarFallback>
-                      {session.user?.name?.charAt(0) || "U"}
-                    </AvatarFallback>
+                    <AvatarImage src={session.user?.image || undefined} />
+                    <AvatarFallback name={session.user?.name} />
                   </Avatar>
                 </button>
 

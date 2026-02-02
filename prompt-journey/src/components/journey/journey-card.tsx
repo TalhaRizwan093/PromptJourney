@@ -155,9 +155,7 @@ export function JourneyCard({ journey, compact = false }: JourneyCardProps) {
             <div className="flex items-center gap-2 mb-2">
               <Avatar className="h-6 w-6">
                 <AvatarImage src={journey.author.image || undefined} />
-                <AvatarFallback className="text-xs">
-                  {journey.author.name?.charAt(0) || "?"}
-                </AvatarFallback>
+                <AvatarFallback className="text-xs" name={journey.author.name} />
               </Avatar>
               <Link 
                 href={journey.author.id ? `/profile/${journey.author.id}` : "#"}
