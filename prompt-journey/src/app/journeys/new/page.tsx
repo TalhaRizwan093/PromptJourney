@@ -1,0 +1,265 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Sparkles,
+  Plus,
+  Trash2,
+  ArrowLeft,
+  Save,
+  Eye,
+  Loader2,
+  X,
+  GripVertical,
+} from "lucide-react";
+import Link from "next/link";
+
+interface JourneyStep {
+  id: string;
+  title: string;
+  prompt: string;
+  result: string;
+  notes: string;
+}
+
+export default function NewJourneyPage() {
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [tagInput, setTagInput] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
+  const [steps, setSteps] = useState<JourneyStep[]>([
+    { id: "1", title: "", prompt: "", result: "", notes: "" },
+  ]);
+
+  const addStep = () => {
+    setSteps([
+      ...steps,
+      { id: Date.now().toString(), title: "", prompt: "", result: "", notes: "" },
+    ]);
+  };
+
+  const removeStep = (id: string) => {
+    if (steps.length > 1) {
+      setSteps(steps.filter((step) => step.id !== id));
+    }
+  };
+
+  const updateStep = (id: string, field: keyof JourneyStep, value: string) => {
+    setSteps(
+      steps.map((step) =>
+        step.id === id ? { ...step, [field]: value } : step
+      )
+    );
+  };
+
+  const addTag = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && tagInput.trim()) {
+      e.preventDefault();
+      if (!tags.includes(tagInput.trim().toLowerCase())) {
+        setTags([...tags, tagInput.trim().toLowerCase()]);
+      }
+      setTagInput("");
+    }
+  };
+
+  const removeTag = (tagToRemove: string) => {
+    setTags(tags.filter((tag) => tag !== tagToRemove));
+  };
+
+  const handleSubmit = async (publish: boolean = false) => {
+    setIsLoading(true);
+    // TODO: Implement actual submission to API
+    setTimeout(() => {
+      setIsLoading(false);
+      router.push("/journeys");
+    }, 1500);
+  };
+
+  return (
+    <div className="container mx-auto px-4 py-8 max-w-4xl">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-4">
+          <Link href="/journeys">
+            <Button variant="ghost" size="icon">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold text-zinc-100 flex items-center gap-2">
+              <Sparkles className="h-6 w-6 text-violet-400" />
+              New Journey
+            </h1>
+            <p className="text-sm text-zinc-400">Document your AI adventure</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => handleSubmit(false)} disabled={isLoading}>
+            <Save className="h-4 w-4 mr-2" />
+            Save Draft
+          </Button>
+          <Button onClick={() => handleSubmit(true)} disabled={isLoading}>
+            {isLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Publishing...
+              </>
+            ) : (
+              <>
+                <Eye className="h-4 w-4 mr-2" />
+                Publish
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+
+      {/* Main Form */}
+      <div className="space-y-6">
+        {/* Title & Description */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Basic Info</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <label className="text-sm font-medium text-zinc-300 mb-2 block">
+                Journey Title
+              </label>
+              <Input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="e.g., Building a SaaS App with Claude"
+                className="text-lg"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-zinc-300 mb-2 block">
+                Description
+              </label>
+              <Textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="A brief overview of what you accomplished and how..."
+                rows={3}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-zinc-300 mb-2 block">
+                Tags
+              </label>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {tags.map((tag) => (
+                  <Badge key={tag} variant="secondary" className="gap-1">
+                    {tag}
+                    <button onClick={() => removeTag(tag)}>
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+              <Input
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={addTag}
+                placeholder="Add tags (press Enter)"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Journey Steps */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-zinc-100">Journey Steps</h2>
+            <Button variant="outline" size="sm" onClick={addStep}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Step
+            </Button>
+          </div>
+
+          {steps.map((step, index) => (
+            <Card key={step.id} className="relative">
+              <div className="absolute top-4 left-4 flex items-center gap-2">
+                <GripVertical className="h-5 w-5 text-zinc-600 cursor-grab" />
+                <span className="w-8 h-8 rounded-lg bg-violet-500/20 text-violet-300 flex items-center justify-center text-sm font-bold">
+                  {index + 1}
+                </span>
+              </div>
+              {steps.length > 1 && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute top-4 right-4 text-zinc-500 hover:text-red-400"
+                  onClick={() => removeStep(step.id)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
+              <CardContent className="pt-16 space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-zinc-300 mb-2 block">
+                    Step Title
+                  </label>
+                  <Input
+                    value={step.title}
+                    onChange={(e) => updateStep(step.id, "title", e.target.value)}
+                    placeholder="e.g., Setting up the database schema"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-zinc-300 mb-2 block">
+                    Prompt Used
+                  </label>
+                  <Textarea
+                    value={step.prompt}
+                    onChange={(e) => updateStep(step.id, "prompt", e.target.value)}
+                    placeholder="Paste the prompt you used..."
+                    rows={4}
+                    className="font-mono text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-zinc-300 mb-2 block">
+                    Result / Output
+                  </label>
+                  <Textarea
+                    value={step.result}
+                    onChange={(e) => updateStep(step.id, "result", e.target.value)}
+                    placeholder="What was the result? Include relevant code or output..."
+                    rows={4}
+                    className="font-mono text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-zinc-300 mb-2 block">
+                    Notes & Learnings
+                  </label>
+                  <Textarea
+                    value={step.notes}
+                    onChange={(e) => updateStep(step.id, "notes", e.target.value)}
+                    placeholder="Any notes, lessons learned, or tips for others..."
+                    rows={2}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+
+          <Button variant="outline" className="w-full" onClick={addStep}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Another Step
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
