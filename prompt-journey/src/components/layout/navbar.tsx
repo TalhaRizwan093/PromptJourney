@@ -16,6 +16,7 @@ import {
   User,
   LogOut,
   Settings,
+  FolderOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -81,14 +82,12 @@ export function Navbar() {
 
           {session ? (
             <>
-              {pathname !== "/journeys" && (
-                <Link href="/journeys/new">
-                  <Button variant="default" size="sm" className="hidden md:flex">
-                    <PlusCircle className="h-4 w-4 mr-2" />
-                    New Journey
-                  </Button>
-                </Link>
-              )}
+              <Link href="/journeys/new" className={pathname === "/journeys" ? "invisible" : ""}>
+                <Button variant="default" size="sm" className="hidden md:flex">
+                  <PlusCircle className="h-4 w-4 mr-2" />
+                  New Journey
+                </Button>
+              </Link>
 
               {/* User Menu */}
               <div className="relative">
@@ -119,6 +118,14 @@ export function Navbar() {
                     >
                       <User className="h-4 w-4" />
                       Profile
+                    </Link>
+                    <Link
+                      href="/my-content"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
+                    >
+                      <FolderOpen className="h-4 w-4" />
+                      My Content
                     </Link>
                     <Link
                       href="/settings"

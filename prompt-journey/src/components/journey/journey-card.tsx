@@ -112,7 +112,7 @@ export function JourneyCard({ journey, compact = false }: JourneyCardProps) {
     if (navigator.share) {
       try {
         await navigator.share({ title: journey.title, url });
-      } catch (err) {
+      } catch {
         // User cancelled or error
       }
     } else {
@@ -199,14 +199,14 @@ export function JourneyCard({ journey, compact = false }: JourneyCardProps) {
           <CardHeader className="pb-2">
             <div className="flex items-center gap-2 mb-2">
               <Avatar className="h-6 w-6">
-                <AvatarImage src={journey.author.image || undefined} />
-                <AvatarFallback className="text-xs" name={journey.author.name} />
+                <AvatarImage src={journey.author?.image || undefined} />
+                <AvatarFallback className="text-xs" name={journey.author?.name} />
               </Avatar>
               <Link 
-                href={journey.author.id ? `/profile/${journey.author.id}` : "#"}
+                href={journey.author?.id ? `/profile/${journey.author.id}` : "#"}
                 className="text-sm text-zinc-400 hover:text-violet-300 transition-colors"
               >
-                {journey.author.name || "Anonymous"}
+                {journey.author?.name || "Anonymous"}
               </Link>
               <span className="text-zinc-600">•</span>
               <span className="text-sm text-zinc-500">
@@ -280,10 +280,6 @@ export function JourneyCard({ journey, compact = false }: JourneyCardProps) {
 
 // Compact version for sidebar/lists
 export function JourneyCardCompact({ journey }: { journey: JourneyCardProps["journey"] }) {
-  const tags = typeof journey.tags === "string" 
-    ? journey.tags.split(",").filter(Boolean)
-    : journey.tags;
-
   return (
     <Link href={`/journeys/${journey.id}`} className="block group">
       <div className="flex items-start gap-3 p-3 rounded-xl hover:bg-zinc-800/50 transition-all duration-200">
@@ -301,7 +297,7 @@ export function JourneyCardCompact({ journey }: { journey: JourneyCardProps["jou
             {journey.title}
           </h4>
           <p className="text-xs text-zinc-500 mt-1">
-            {journey.author.name || "Anonymous"} • {formatRelativeTime(journey.createdAt)}
+            {journey.author?.name || "Anonymous"} • {formatRelativeTime(journey.createdAt)}
           </p>
         </div>
         {journey.award && (

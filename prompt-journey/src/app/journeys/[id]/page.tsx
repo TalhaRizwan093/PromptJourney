@@ -14,14 +14,11 @@ import {
   ArrowDown,
   MessageSquare,
   Eye,
-  Share2,
-  Bookmark,
   Trophy,
   ArrowLeft,
   Copy,
   Check,
   Calendar,
-  User,
   Send,
   FileText,
 } from "lucide-react";
@@ -60,19 +57,15 @@ export default function JourneyDetailPage({ params }: { params: Promise<{ id: st
   const { journey, isLoading, mutate } = useJourney(id);
   const { createComment, isLoading: isCommenting } = useCreateComment(id);
   
-  const [voteCount, setVoteCount] = useState(0);
-  const [userVote, setUserVote] = useState<number | null>(null);
+  const [localVoteCount, setLocalVoteCount] = useState<number | null>(null);
+  const [localUserVote, setLocalUserVote] = useState<number | null | undefined>(undefined);
   const [copiedStep, setCopiedStep] = useState<string | null>(null);
   const [comment, setComment] = useState("");
   const [replyTo, setReplyTo] = useState<string | null>(null);
 
-  // Update local state when journey loads
-  useState(() => {
-    if (journey) {
-      setVoteCount(journey.voteCount);
-      setUserVote(journey.userVote ?? null);
-    }
-  });
+  // Use local state if set, otherwise use journey data
+  const voteCount = localVoteCount ?? journey?.voteCount ?? 0;
+  const userVote = localUserVote !== undefined ? localUserVote : (journey?.userVote ?? null);
 
   const handleVote = async (value: 1 | -1) => {
     if (!session) {
@@ -89,8 +82,8 @@ export default function JourneyDetailPage({ params }: { params: Promise<{ id: st
       
       if (res.ok) {
         const data = await res.json();
-        setVoteCount(data.voteCount);
-        setUserVote(data.userVote);
+        setLocalVoteCount(data.voteCount);
+        setLocalUserVote(data.userVote);
       }
     } catch (error) {
       console.error("Vote failed:", error);

@@ -35,8 +35,9 @@ export async function GET(
     const journeys = await db.journey.findMany({
       where: { authorId: id, published: true },
       orderBy: { createdAt: "desc" },
-      take: 10,
+      take: 20,
       include: {
+        author: { select: { id: true, name: true, image: true } },
         _count: { select: { comments: true } },
         awards: true,
       },
@@ -94,5 +95,33 @@ export async function PUT(
   } catch (error) {
     console.error("Error updating user:", error);
     return NextResponse.json({ error: "Failed to update user" }, { status: 500 });
+  }
+}
+
+// DELETE user account
+export async function DELETE(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getAuthSession();
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id } = await params;
+    if (session.user.id !== id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // Delete all user data (cascading deletes handled by Prisma)
+    await db.user.delete({
+      where: { id },
+    });
+
+    return NextResponse.json({ message: "Account deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting user:", error);
+    return NextResponse.json({ error: "Failed to delete account" }, { status: 500 });
   }
 }

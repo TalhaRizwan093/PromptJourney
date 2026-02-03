@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { OneShotCard } from "@/components/oneshot/oneshot-card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useOneShots } from "@/lib/hooks";

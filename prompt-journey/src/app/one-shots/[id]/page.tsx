@@ -2,7 +2,6 @@
 
 import { use, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,7 +15,6 @@ import {
   ExternalLink,
   Share2,
   Bookmark,
-  User,
 } from "lucide-react";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
@@ -27,7 +25,6 @@ interface OneShotDetailProps {
 
 export default function OneShotDetailPage({ params }: OneShotDetailProps) {
   const { id } = use(params);
-  const router = useRouter();
   const [copied, setCopied] = useState(false);
   const [copyCount, setCopyCount] = useState(0);
 

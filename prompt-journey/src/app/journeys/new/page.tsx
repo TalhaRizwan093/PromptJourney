@@ -20,6 +20,7 @@ import {
   GripVertical,
 } from "lucide-react";
 import Link from "next/link";
+import { RichEditor } from "@/components/ui/rich-editor";
 
 interface JourneyStep {
   id: string;
@@ -289,23 +290,22 @@ export default function NewJourneyPage() {
                   <label className="text-sm font-medium text-zinc-300 mb-2 block">
                     Result / Output
                   </label>
-                  <Textarea
+                  <RichEditor
                     value={step.result}
-                    onChange={(e) => updateStep(step.id, "result", e.target.value)}
-                    placeholder="What was the result? Include relevant code or output..."
-                    rows={4}
-                    className="font-mono text-sm"
+                    onChange={(val) => updateStep(step.id, "result", val)}
+                    placeholder="What was the result? Include code, images, tables..."
+                    minHeight="150px"
                   />
                 </div>
                 <div>
                   <label className="text-sm font-medium text-zinc-300 mb-2 block">
                     Notes & Learnings
                   </label>
-                  <Textarea
+                  <RichEditor
                     value={step.notes}
-                    onChange={(e) => updateStep(step.id, "notes", e.target.value)}
+                    onChange={(val) => updateStep(step.id, "notes", val)}
                     placeholder="Any notes, lessons learned, or tips for others..."
-                    rows={2}
+                    minHeight="100px"
                   />
                 </div>
               </CardContent>

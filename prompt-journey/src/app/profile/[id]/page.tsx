@@ -2,13 +2,11 @@
 
 import { use, useState } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { JourneyCard } from "@/components/journey/journey-card";
 import { OneShotCard } from "@/components/oneshot/oneshot-card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -32,7 +30,6 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 export default function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { data: session } = useSession();
-  const router = useRouter();
   const [activeTab, setActiveTab] = useState<"journeys" | "oneshots">("journeys");
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState("");

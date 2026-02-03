@@ -14,7 +14,6 @@ import {
   Search,
   Filter,
   PlusCircle,
-  Loader2,
 } from "lucide-react";
 import Link from "next/link";
 import { useJourneys } from "@/lib/hooks";

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useSession, signOut } from "next-auth/react";
+import useSWR from "swr";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -17,16 +17,56 @@ import {
   Save,
   Loader2,
   Check,
+  Trash2,
+  Eye,
+  EyeOff,
+  Moon,
+  AlertTriangle,
 } from "lucide-react";
 import Link from "next/link";
 
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
+
 export default function SettingsPage() {
-  const { data: session, status } = useSession();
-  const router = useRouter();
+  const { data: session, status, update } = useSession();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [name, setName] = useState(session?.user?.name || "");
+  const [deleting, setDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  
+  // Profile settings
+  const [name, setName] = useState("");
   const [bio, setBio] = useState("");
+  
+  // Notification settings
+  const [emailComments, setEmailComments] = useState(true);
+  const [emailVotes, setEmailVotes] = useState(false);
+  const [emailAwards, setEmailAwards] = useState(true);
+  
+  // Privacy settings
+  const [profilePublic, setProfilePublic] = useState(true);
+
+  // Fetch user profile data
+  const { data: userData } = useSWR(
+    session?.user?.id ? `/api/users/${session.user.id}` : null,
+    fetcher
+  );
+
+  // Load user data when available
+  useEffect(() => {
+    if (userData) {
+      setName(userData.name || "");
+      setBio(userData.bio || "");
+    }
+  }, [userData]);
+
+  // Also load from session initially
+  useEffect(() => {
+    if (session?.user?.name && !name) {
+      setName(session.user.name);
+    }
+  }, [session, name]);
 
   if (status === "loading") {
     return (
@@ -51,7 +91,7 @@ export default function SettingsPage() {
     );
   }
 
-  const handleSave = async () => {
+  const handleSaveProfile = async () => {
     setSaving(true);
     try {
       const res = await fetch(`/api/users/${session.user?.id}`, {
@@ -61,12 +101,34 @@ export default function SettingsPage() {
       });
       if (res.ok) {
         setSaved(true);
+        await update({ name });
         setTimeout(() => setSaved(false), 3000);
       }
     } catch (error) {
       console.error("Failed to save settings:", error);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== "DELETE") return;
+    
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/users/${session.user?.id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        await signOut({ callbackUrl: "/" });
+      } else {
+        alert("Failed to delete account. Please try again.");
+      }
+    } catch (error) {
+      console.error("Failed to delete account:", error);
+      alert("Failed to delete account. Please try again.");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -140,7 +202,7 @@ export default function SettingsPage() {
               />
             </div>
 
-            <Button onClick={handleSave} disabled={saving}>
+            <Button onClick={handleSaveProfile} disabled={saving}>
               {saving ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : saved ? (
@@ -165,13 +227,46 @@ export default function SettingsPage() {
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-zinc-300">Email notifications</p>
-                <p className="text-xs text-zinc-500">Get notified about comments and votes</p>
+                <p className="text-sm font-medium text-zinc-300">Comments on your journeys</p>
+                <p className="text-xs text-zinc-500">Get notified when someone comments</p>
               </div>
-              <Button variant="outline" size="sm" disabled>
-                Coming Soon
+              <Button 
+                variant={emailComments ? "default" : "outline"} 
+                size="sm"
+                onClick={() => setEmailComments(!emailComments)}
+              >
+                {emailComments ? "On" : "Off"}
               </Button>
             </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-zinc-300">Votes on your content</p>
+                <p className="text-xs text-zinc-500">Get notified when you receive votes</p>
+              </div>
+              <Button 
+                variant={emailVotes ? "default" : "outline"} 
+                size="sm"
+                onClick={() => setEmailVotes(!emailVotes)}
+              >
+                {emailVotes ? "On" : "Off"}
+              </Button>
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-zinc-300">Awards & achievements</p>
+                <p className="text-xs text-zinc-500">Get notified when you win awards</p>
+              </div>
+              <Button 
+                variant={emailAwards ? "default" : "outline"} 
+                size="sm"
+                onClick={() => setEmailAwards(!emailAwards)}
+              >
+                {emailAwards ? "On" : "Off"}
+              </Button>
+            </div>
+            <p className="text-xs text-zinc-500 pt-2 border-t border-zinc-800">
+              Note: Email notifications will be enabled in a future update
+            </p>
           </CardContent>
         </Card>
 
@@ -186,12 +281,16 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-zinc-300">Theme</p>
-                <p className="text-xs text-zinc-500">Dark mode is the default</p>
+              <div className="flex items-center gap-3">
+                <Moon className="h-5 w-5 text-zinc-400" />
+                <div>
+                  <p className="text-sm font-medium text-zinc-300">Dark Mode</p>
+                  <p className="text-xs text-zinc-500">Currently the only available theme</p>
+                </div>
               </div>
-              <Button variant="outline" size="sm" disabled>
-                Dark
+              <Button variant="secondary" size="sm" disabled>
+                <Check className="h-4 w-4 mr-1" />
+                Active
               </Button>
             </div>
           </CardContent>
@@ -208,22 +307,89 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-zinc-300">Profile visibility</p>
-                <p className="text-xs text-zinc-500">Your profile is public</p>
+              <div className="flex items-center gap-3">
+                {profilePublic ? <Eye className="h-5 w-5 text-zinc-400" /> : <EyeOff className="h-5 w-5 text-zinc-400" />}
+                <div>
+                  <p className="text-sm font-medium text-zinc-300">Profile visibility</p>
+                  <p className="text-xs text-zinc-500">
+                    {profilePublic ? "Anyone can view your profile" : "Only you can view your profile"}
+                  </p>
+                </div>
               </div>
-              <Button variant="outline" size="sm" disabled>
-                Public
+              <Button 
+                variant={profilePublic ? "default" : "outline"} 
+                size="sm"
+                onClick={() => setProfilePublic(!profilePublic)}
+              >
+                {profilePublic ? "Public" : "Private"}
               </Button>
             </div>
-            <div className="pt-4 border-t border-zinc-800">
-              <p className="text-sm font-medium text-red-400">Danger Zone</p>
-              <p className="text-xs text-zinc-500 mt-1 mb-3">
-                Permanently delete your account and all data
-              </p>
-              <Button variant="destructive" size="sm" disabled>
-                Delete Account
-              </Button>
+
+            {/* Danger Zone */}
+            <div className="pt-4 mt-4 border-t border-zinc-800">
+              <div className="flex items-center gap-2 mb-3">
+                <AlertTriangle className="h-5 w-5 text-red-400" />
+                <p className="text-sm font-medium text-red-400">Danger Zone</p>
+              </div>
+              
+              {!showDeleteConfirm ? (
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-zinc-300">Delete account</p>
+                    <p className="text-xs text-zinc-500">
+                      Permanently delete your account and all data
+                    </p>
+                  </div>
+                  <Button 
+                    variant="destructive" 
+                    size="sm"
+                    onClick={() => setShowDeleteConfirm(true)}
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    Delete
+                  </Button>
+                </div>
+              ) : (
+                <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30 space-y-3">
+                  <p className="text-sm text-red-300">
+                    This action cannot be undone. All your journeys, one-shots, comments, and votes will be permanently deleted.
+                  </p>
+                  <div>
+                    <label className="text-xs text-zinc-400 block mb-1">
+                      Type DELETE to confirm
+                    </label>
+                    <Input
+                      value={deleteConfirmText}
+                      onChange={(e) => setDeleteConfirmText(e.target.value)}
+                      placeholder="DELETE"
+                      className="bg-zinc-900"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="destructive"
+                      onClick={handleDeleteAccount}
+                      disabled={deleteConfirmText !== "DELETE" || deleting}
+                    >
+                      {deleting ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4 mr-2" />
+                      )}
+                      Delete My Account
+                    </Button>
+                    <Button 
+                      variant="outline"
+                      onClick={() => {
+                        setShowDeleteConfirm(false);
+                        setDeleteConfirmText("");
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
