@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import useSWR from "swr";
 import { JourneyCard } from "@/components/journey/journey-card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +22,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
+
 const filterTabs = [
   { label: "Hot", value: "hot", icon: Flame },
   { label: "Trending", value: "trending", icon: TrendingUp },
@@ -34,11 +37,12 @@ export function HomeContent() {
   const [page, setPage] = useState(1);
 
   const { journeys, total, pages, isLoading } = useJourneys({ sort, search, page });
+  const { data: stats } = useSWR("/api/stats", fetcher);
 
-  const stats = [
-    { label: "Active Journeys", value: total > 0 ? total.toString() : "0", icon: FileText },
-    { label: "Community Members", value: "—", icon: Users },
-    { label: "Prompts Shared", value: "—", icon: Zap },
+  const statsDisplay = [
+    { label: "Active Journeys", value: stats?.journeys?.toString() || "0", icon: FileText },
+    { label: "Community Members", value: stats?.users?.toString() || "0", icon: Users },
+    { label: "Prompts Shared", value: stats?.prompts?.toString() || "0", icon: Zap },
   ];
 
   return (
@@ -74,7 +78,7 @@ export function HomeContent() {
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4 mb-12">
-        {stats.map((stat) => {
+        {statsDisplay.map((stat) => {
           const Icon = stat.icon;
           return (
             <div

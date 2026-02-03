@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
@@ -13,6 +13,7 @@ import {
   MessageSquare,
   Eye,
   Bookmark,
+  BookmarkCheck,
   Share2,
   Trophy,
 } from "lucide-react";
@@ -60,6 +61,13 @@ export function JourneyCard({ journey, compact = false }: JourneyCardProps) {
   const [voteCount, setVoteCount] = useState(journey.voteCount);
   const [userVote, setUserVote] = useState<number | null>(journey.userVote ?? null);
   const [isVoting, setIsVoting] = useState(false);
+  const [isBookmarked, setIsBookmarked] = useState(false);
+
+  // Check if journey is bookmarked on mount
+  useEffect(() => {
+    const bookmarks = JSON.parse(localStorage.getItem("bookmarkedJourneys") || "[]");
+    setIsBookmarked(bookmarks.includes(journey.id));
+  }, [journey.id]);
 
   // Parse tags - handle both string and array formats
   const tags = typeof journey.tags === "string" 
@@ -92,11 +100,48 @@ export function JourneyCard({ journey, compact = false }: JourneyCardProps) {
     }
   };
 
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Only navigate if not clicking on a button or link
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('a')) return;
+    window.location.href = `/journeys/${journey.id}`;
+  };
+
+  const handleShare = async () => {
+    const url = `${window.location.origin}/journeys/${journey.id}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: journey.title, url });
+      } catch (err) {
+        // User cancelled or error
+      }
+    } else {
+      await navigator.clipboard.writeText(url);
+      alert('Link copied to clipboard!');
+    }
+  };
+
+  const handleBookmark = () => {
+    const bookmarks = JSON.parse(localStorage.getItem("bookmarkedJourneys") || "[]");
+    if (isBookmarked) {
+      const updated = bookmarks.filter((id: string) => id !== journey.id);
+      localStorage.setItem("bookmarkedJourneys", JSON.stringify(updated));
+      setIsBookmarked(false);
+    } else {
+      bookmarks.push(journey.id);
+      localStorage.setItem("bookmarkedJourneys", JSON.stringify(bookmarks));
+      setIsBookmarked(true);
+    }
+  };
+
   return (
-    <Card className={cn(
-      "group relative overflow-hidden",
-      journey.award && "ring-2 ring-yellow-500/30"
-    )}>
+    <Card 
+      className={cn(
+        "group relative overflow-hidden cursor-pointer",
+        journey.award && "ring-2 ring-yellow-500/30"
+      )}
+      onClick={handleCardClick}
+    >
       {/* Gradient accent on hover */}
       <div className="absolute inset-0 bg-linear-to-r from-violet-600/5 to-indigo-600/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
       
@@ -206,10 +251,23 @@ export function JourneyCard({ journey, compact = false }: JourneyCardProps) {
                 <Eye className="h-4 w-4" />
                 {journey.viewCount}
               </div>
-              <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Bookmark className="h-4 w-4" />
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className={cn(
+                  "h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity",
+                  isBookmarked && "opacity-100 text-violet-400"
+                )}
+                onClick={(e) => { e.stopPropagation(); handleBookmark(); }}
+              >
+                {isBookmarked ? <BookmarkCheck className="h-4 w-4" /> : <Bookmark className="h-4 w-4" />}
               </Button>
-              <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={(e) => { e.stopPropagation(); handleShare(); }}
+              >
                 <Share2 className="h-4 w-4" />
               </Button>
             </div>

@@ -81,12 +81,14 @@ export function Navbar() {
 
           {session ? (
             <>
-              <Link href="/journeys/new">
-                <Button variant="default" size="sm" className="hidden md:flex">
-                  <PlusCircle className="h-4 w-4 mr-2" />
-                  New Journey
-                </Button>
-              </Link>
+              {pathname !== "/journeys" && (
+                <Link href="/journeys/new">
+                  <Button variant="default" size="sm" className="hidden md:flex">
+                    <PlusCircle className="h-4 w-4 mr-2" />
+                    New Journey
+                  </Button>
+                </Link>
+              )}
 
               {/* User Menu */}
               <div className="relative">
@@ -111,7 +113,8 @@ export function Navbar() {
                       </p>
                     </div>
                     <Link
-                      href="/profile"
+                      href={`/profile/${session.user?.id}`}
+                      onClick={() => setUserMenuOpen(false)}
                       className="flex items-center gap-2 px-4 py-2 text-sm text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
                     >
                       <User className="h-4 w-4" />
@@ -119,6 +122,7 @@ export function Navbar() {
                     </Link>
                     <Link
                       href="/settings"
+                      onClick={() => setUserMenuOpen(false)}
                       className="flex items-center gap-2 px-4 py-2 text-sm text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
                     >
                       <Settings className="h-4 w-4" />
@@ -190,7 +194,7 @@ export function Navbar() {
                 </Link>
               );
             })}
-            {session && (
+            {session && pathname !== "/journeys" && (
               <Link
                 href="/journeys/new"
                 onClick={() => setMobileMenuOpen(false)}
@@ -198,6 +202,16 @@ export function Navbar() {
               >
                 <PlusCircle className="h-5 w-5" />
                 New Journey
+              </Link>
+            )}
+            {session && (
+              <Link
+                href={`/profile/${session.user?.id}`}
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
+              >
+                <User className="h-5 w-5" />
+                Profile
               </Link>
             )}
           </nav>

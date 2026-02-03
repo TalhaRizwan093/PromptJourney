@@ -71,7 +71,7 @@ export default function OneShotDetailPage({ params }: OneShotDetailProps) {
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <div className="text-center py-12">
           <h2 className="text-2xl font-bold text-zinc-300 mb-2">One-Shot Not Found</h2>
-          <p className="text-zinc-500 mb-4">This prompt doesn't exist or has been removed.</p>
+          <p className="text-zinc-500 mb-4">This prompt doesn&apos;t exist or has been removed.</p>
           <Link href="/one-shots">
             <Button>
               <ArrowLeft className="h-4 w-4 mr-2" />
