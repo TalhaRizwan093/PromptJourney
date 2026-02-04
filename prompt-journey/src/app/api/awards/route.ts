@@ -103,8 +103,9 @@ export async function POST(req: Request) {
     });
 
     // Create awards
+    type JourneyItem = typeof topJourneys[number];
     const awards = await Promise.all(
-      topJourneys.map((journey, index) =>
+      topJourneys.map((journey: JourneyItem, index: number) =>
         db.award.upsert({
           where: { type_period_rank: { type, period, rank: index + 1 } },
           create: {
