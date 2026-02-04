@@ -5,6 +5,16 @@
   --foreground: #fafafa;
 }
 
+.dark {
+  --background: #09090b;
+  --foreground: #fafafa;
+}
+
+.light {
+  --background: #fafafa;
+  --foreground: #09090b;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -16,6 +26,75 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/* Light mode specific overrides */
+.light {
+  background: #fafafa;
+  color: #09090b;
+}
+
+.light .bg-zinc-900 {
+  background-color: #ffffff;
+}
+
+.light .bg-zinc-950 {
+  background-color: #f4f4f5;
+}
+
+.light .bg-zinc-800 {
+  background-color: #e4e4e7;
+}
+
+.light .border-zinc-800 {
+  border-color: #e4e4e7;
+}
+
+.light .border-zinc-700 {
+  border-color: #d4d4d8;
+}
+
+.light .text-zinc-100 {
+  color: #18181b;
+}
+
+.light .text-zinc-300 {
+  color: #3f3f46;
+}
+
+.light .text-zinc-400 {
+  color: #52525b;
+}
+
+.light .text-zinc-500 {
+  color: #71717a;
+}
+
+.light .hover\:bg-zinc-800:hover {
+  background-color: #e4e4e7;
+}
+
+.light .hover\:text-zinc-100:hover {
+  color: #18181b;
+}
+
+/* Light mode scrollbar */
+.light ::-webkit-scrollbar-track {
+  background: #f4f4f5;
+}
+
+.light ::-webkit-scrollbar-thumb {
+  background: #d4d4d8;
+}
+
+.light ::-webkit-scrollbar-thumb:hover {
+  background: #a1a1aa;
+}
+
+/* Light mode glass effect */
+.light .glass {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(228, 228, 231, 0.8);
 }
 
 /* Custom scrollbar */

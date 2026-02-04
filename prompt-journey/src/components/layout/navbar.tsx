@@ -1,15 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
 import {
   Sparkles,
   Compass,
   Trophy,
   Zap,
-  PlusCircle,
   Search,
   Menu,
   X,
@@ -31,12 +31,24 @@ const navLinks = [
 
 export function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const { data: session } = useSession();
 
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      router.push(`/journeys?search=${encodeURIComponent(searchQuery.trim())}`);
+      setSearchOpen(false);
+      setSearchQuery("");
+    }
+  };
+
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-zinc-800 bg-zinc-950/80 backdrop-blur-xl">
+    <header className="sticky top-0 z-50 w-full border-b border-zinc-800 dark:border-zinc-800 light:border-zinc-200 bg-zinc-950/80 dark:bg-zinc-950/80 light:bg-white/80 backdrop-blur-xl">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 group">
@@ -64,7 +76,7 @@ export function Navbar() {
                   "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300",
                   isActive
                     ? "bg-violet-500/20 text-violet-300"
-                    : "text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
+                    : "text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 dark:hover:bg-zinc-800 light:hover:bg-zinc-100"
                 )}
               >
                 <Icon className="h-4 w-4" />
@@ -76,19 +88,29 @@ export function Navbar() {
 
         {/* Search & Actions */}
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" className="hidden md:flex">
-            <Search className="h-5 w-5" />
-          </Button>
+          {searchOpen ? (
+            <form onSubmit={handleSearch} className="hidden md:flex items-center gap-2">
+              <Input
+                type="search"
+                placeholder="Search journeys..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-64"
+                autoFocus
+              />
+              <Button type="submit" size="sm">Search</Button>
+              <Button type="button" variant="ghost" size="icon" onClick={() => setSearchOpen(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </form>
+          ) : (
+            <Button variant="ghost" size="icon" className="hidden md:flex" onClick={() => setSearchOpen(true)}>
+              <Search className="h-5 w-5" />
+            </Button>
+          )}
 
           {session ? (
             <>
-              <Link href="/journeys/new" className={pathname === "/journeys" ? "invisible" : ""}>
-                <Button variant="default" size="sm" className="hidden md:flex">
-                  <PlusCircle className="h-4 w-4 mr-2" />
-                  New Journey
-                </Button>
-              </Link>
-
               {/* User Menu */}
               <div className="relative">
                 <button
@@ -102,9 +124,9 @@ export function Navbar() {
                 </button>
 
                 {userMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-56 rounded-xl border border-zinc-800 bg-zinc-900 shadow-xl py-2">
-                    <div className="px-4 py-2 border-b border-zinc-800">
-                      <p className="text-sm font-medium text-zinc-100">
+                  <div className="absolute right-0 mt-2 w-56 rounded-xl border border-zinc-800 dark:border-zinc-800 light:border-zinc-200 bg-zinc-900 dark:bg-zinc-900 light:bg-white shadow-xl py-2">
+                    <div className="px-4 py-2 border-b border-zinc-800 dark:border-zinc-800 light:border-zinc-200">
+                      <p className="text-sm font-medium text-zinc-100 dark:text-zinc-100 light:text-zinc-900">
                         {session.user?.name}
                       </p>
                       <p className="text-xs text-zinc-500">
@@ -114,7 +136,7 @@ export function Navbar() {
                     <Link
                       href={`/profile/${session.user?.id}`}
                       onClick={() => setUserMenuOpen(false)}
-                      className="flex items-center gap-2 px-4 py-2 text-sm text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 dark:hover:bg-zinc-800 light:hover:bg-zinc-100"
                     >
                       <User className="h-4 w-4" />
                       Profile
@@ -122,7 +144,7 @@ export function Navbar() {
                     <Link
                       href="/my-content"
                       onClick={() => setUserMenuOpen(false)}
-                      className="flex items-center gap-2 px-4 py-2 text-sm text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 dark:hover:bg-zinc-800 light:hover:bg-zinc-100"
                     >
                       <FolderOpen className="h-4 w-4" />
                       My Content
@@ -130,7 +152,7 @@ export function Navbar() {
                     <Link
                       href="/settings"
                       onClick={() => setUserMenuOpen(false)}
-                      className="flex items-center gap-2 px-4 py-2 text-sm text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 dark:hover:bg-zinc-800 light:hover:bg-zinc-100"
                     >
                       <Settings className="h-4 w-4" />
                       Settings
@@ -181,6 +203,19 @@ export function Navbar() {
       {mobileMenuOpen && (
         <div className="md:hidden border-t border-zinc-800 bg-zinc-950/95 backdrop-blur-xl">
           <nav className="container mx-auto px-4 py-4 space-y-2">
+            {/* Mobile Search */}
+            <form onSubmit={handleSearch} className="mb-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+                <Input
+                  type="search"
+                  placeholder="Search journeys..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </form>
             {navLinks.map((link) => {
               const Icon = link.icon;
               const isActive = pathname === link.href;
@@ -201,16 +236,6 @@ export function Navbar() {
                 </Link>
               );
             })}
-            {session && pathname !== "/journeys" && (
-              <Link
-                href="/journeys/new"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium bg-linear-to-r from-violet-600 to-indigo-600 text-white"
-              >
-                <PlusCircle className="h-5 w-5" />
-                New Journey
-              </Link>
-            )}
             {session && (
               <Link
                 href={`/profile/${session.user?.id}`}

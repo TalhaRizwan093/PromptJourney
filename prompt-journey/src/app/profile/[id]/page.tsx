@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import { ConfirmModal } from "@/components/ui/confirm-modal";
 import {
   Calendar,
   FileText,
@@ -21,6 +22,7 @@ import {
   Trash2,
   Loader2,
   Settings,
+  Lock,
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import Link from "next/link";
@@ -36,6 +38,7 @@ export default function ProfilePage({ params }: { params: Promise<{ id: string }
   const [editBio, setEditBio] = useState("");
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; type: "journey" | "oneshot"; id: string; title: string } | null>(null);
 
   const { data: user, isLoading, mutate } = useSWR(
     id ? `/api/users/${id}` : null,
@@ -75,26 +78,24 @@ export default function ProfilePage({ params }: { params: Promise<{ id: string }
   };
 
   const handleDeleteJourney = async (journeyId: string) => {
-    if (!confirm("Are you sure you want to delete this journey? This cannot be undone.")) return;
+    if (!deleteModal) return;
     
     setDeletingId(journeyId);
     try {
       const res = await fetch(`/api/journeys/${journeyId}`, { method: "DELETE" });
       if (res.ok) {
         mutate();
-      } else {
-        alert("Failed to delete journey");
       }
     } catch (error) {
       console.error("Failed to delete:", error);
-      alert("Failed to delete journey");
     } finally {
       setDeletingId(null);
+      setDeleteModal(null);
     }
   };
 
   const handleDeleteOneShot = async (oneShotId: string) => {
-    if (!confirm("Are you sure you want to delete this one-shot? This cannot be undone.")) return;
+    if (!deleteModal) return;
     
     setDeletingId(oneShotId);
     try {
@@ -102,14 +103,21 @@ export default function ProfilePage({ params }: { params: Promise<{ id: string }
       if (res.ok) {
         mutateOneShots();
         mutate();
-      } else {
-        alert("Failed to delete one-shot");
       }
     } catch (error) {
       console.error("Failed to delete:", error);
-      alert("Failed to delete one-shot");
     } finally {
       setDeletingId(null);
+      setDeleteModal(null);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteModal) return;
+    if (deleteModal.type === "journey") {
+      await handleDeleteJourney(deleteModal.id);
+    } else {
+      await handleDeleteOneShot(deleteModal.id);
     }
   };
 
@@ -133,6 +141,19 @@ export default function ProfilePage({ params }: { params: Promise<{ id: string }
       <div className="container mx-auto px-4 py-8 max-w-4xl text-center">
         <h1 className="text-2xl font-bold text-zinc-100">User Not Found</h1>
         <p className="text-zinc-400 mt-2">This user doesn&apos;t exist or has been deleted.</p>
+      </div>
+    );
+  }
+
+  // Check if profile is private
+  if (user.isPrivate && !isOwner) {
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-4xl text-center">
+        <div className="p-8 rounded-2xl bg-zinc-900/50 border border-zinc-800">
+          <Lock className="h-16 w-16 mx-auto mb-4 text-zinc-600" />
+          <h1 className="text-2xl font-bold text-zinc-100 mb-2">Private Profile</h1>
+          <p className="text-zinc-400">This user has set their profile to private.</p>
+        </div>
       </div>
     );
   }
@@ -286,7 +307,7 @@ export default function ProfilePage({ params }: { params: Promise<{ id: string }
                     variant="destructive"
                     size="sm"
                     className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                    onClick={() => handleDeleteJourney(journey.id)}
+                    onClick={() => setDeleteModal({ isOpen: true, type: "journey", id: journey.id, title: journey.title })}
                     disabled={deletingId === journey.id}
                   >
                     {deletingId === journey.id ? (
@@ -324,7 +345,7 @@ export default function ProfilePage({ params }: { params: Promise<{ id: string }
                     variant="destructive"
                     size="sm"
                     className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                    onClick={() => handleDeleteOneShot(oneShot.id)}
+                    onClick={() => setDeleteModal({ isOpen: true, type: "oneshot", id: oneShot.id, title: oneShot.title })}
                     disabled={deletingId === oneShot.id}
                   >
                     {deletingId === oneShot.id ? (
@@ -339,6 +360,19 @@ export default function ProfilePage({ params }: { params: Promise<{ id: string }
           )}
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={deleteModal?.isOpen || false}
+        onClose={() => setDeleteModal(null)}
+        onConfirm={confirmDelete}
+        title={`Delete ${deleteModal?.type === "journey" ? "Journey" : "One-Shot"}?`}
+        message={<>Are you sure you want to delete <strong>&quot;{deleteModal?.title}&quot;</strong>? This action cannot be undone.</>}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        loading={deletingId !== null}
+      />
     </div>
   );
 }

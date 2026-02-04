@@ -8,6 +8,7 @@ import { OneShotCard } from "@/components/oneshot/oneshot-card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
+import { ConfirmModal } from "@/components/ui/confirm-modal";
 import {
   FileText,
   Zap,
@@ -27,6 +28,7 @@ export default function MyContentPage() {
   const [activeTab, setActiveTab] = useState<"journeys" | "oneshots" | "drafts">("journeys");
   const [search, setSearch] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; type: "journey" | "oneshot"; id: string; title: string } | null>(null);
 
   const { data: userData, isLoading: loadingUser, mutate: mutateUser } = useSWR(
     session?.user?.id ? `/api/users/${session.user.id}` : null,
@@ -43,8 +45,11 @@ export default function MyContentPage() {
     fetcher
   );
 
-  const handleDeleteJourney = async (journeyId: string) => {
-    if (!confirm("Are you sure you want to delete this journey? This cannot be undone.")) return;
+  const handleDeleteJourney = async (journeyId: string, title?: string) => {
+    if (!deleteModal) {
+      setDeleteModal({ isOpen: true, type: "journey", id: journeyId, title: title || "this journey" });
+      return;
+    }
     
     setDeletingId(journeyId);
     try {
@@ -52,19 +57,20 @@ export default function MyContentPage() {
       if (res.ok) {
         mutateUser();
         if (activeTab === "drafts") mutateDrafts();
-      } else {
-        alert("Failed to delete journey");
       }
     } catch (error) {
       console.error("Failed to delete:", error);
-      alert("Failed to delete journey");
     } finally {
       setDeletingId(null);
+      setDeleteModal(null);
     }
   };
 
-  const handleDeleteOneShot = async (oneShotId: string) => {
-    if (!confirm("Are you sure you want to delete this one-shot? This cannot be undone.")) return;
+  const handleDeleteOneShot = async (oneShotId: string, title?: string) => {
+    if (!deleteModal) {
+      setDeleteModal({ isOpen: true, type: "oneshot", id: oneShotId, title: title || "this one-shot" });
+      return;
+    }
     
     setDeletingId(oneShotId);
     try {
@@ -72,14 +78,45 @@ export default function MyContentPage() {
       if (res.ok) {
         mutateOneShots();
         mutateUser();
-      } else {
-        alert("Failed to delete one-shot");
       }
     } catch (error) {
       console.error("Failed to delete:", error);
-      alert("Failed to delete one-shot");
     } finally {
       setDeletingId(null);
+      setDeleteModal(null);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteModal) return;
+    if (deleteModal.type === "journey") {
+      setDeletingId(deleteModal.id);
+      try {
+        const res = await fetch(`/api/journeys/${deleteModal.id}`, { method: "DELETE" });
+        if (res.ok) {
+          mutateUser();
+          if (activeTab === "drafts") mutateDrafts();
+        }
+      } catch (error) {
+        console.error("Failed to delete:", error);
+      } finally {
+        setDeletingId(null);
+        setDeleteModal(null);
+      }
+    } else {
+      setDeletingId(deleteModal.id);
+      try {
+        const res = await fetch(`/api/one-shots/${deleteModal.id}`, { method: "DELETE" });
+        if (res.ok) {
+          mutateOneShots();
+          mutateUser();
+        }
+      } catch (error) {
+        console.error("Failed to delete:", error);
+      } finally {
+        setDeletingId(null);
+        setDeleteModal(null);
+      }
     }
   };
 
@@ -212,7 +249,7 @@ export default function MyContentPage() {
               </Link>
             </div>
           ) : (
-            filteredJourneys.map((journey: { id: string; title: string; description: string; tags: string; voteCount: number; viewCount: number; commentCount?: number; createdAt: string; author: { id: string; name: string | null; image: string | null }; award?: { type: string; rank: number } | null }) => (
+            filteredJourneys.map((journey: { id: string; title: string; description: string; tags: string; voteCount: number; viewCount: number; commentCount: number; createdAt: string; author: { id: string; name: string | null; image: string | null }; award?: { type: string; rank: number } | null }) => (
               <div key={journey.id} className="relative group">
                 <JourneyCard journey={journey} />
                 <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
@@ -224,7 +261,7 @@ export default function MyContentPage() {
                   <Button
                     variant="destructive"
                     size="sm"
-                    onClick={() => handleDeleteJourney(journey.id)}
+                    onClick={() => setDeleteModal({ isOpen: true, type: "journey", id: journey.id, title: journey.title })}
                     disabled={deletingId === journey.id}
                   >
                     {deletingId === journey.id ? (
@@ -263,7 +300,7 @@ export default function MyContentPage() {
                   <Button
                     variant="destructive"
                     size="sm"
-                    onClick={() => handleDeleteOneShot(oneShot.id)}
+                    onClick={() => setDeleteModal({ isOpen: true, type: "oneshot", id: oneShot.id, title: oneShot.title })}
                     disabled={deletingId === oneShot.id}
                   >
                     {deletingId === oneShot.id ? (
@@ -317,7 +354,7 @@ export default function MyContentPage() {
                     <Button
                       variant="destructive"
                       size="sm"
-                      onClick={() => handleDeleteJourney(draft.id)}
+                      onClick={() => setDeleteModal({ isOpen: true, type: "journey", id: draft.id, title: draft.title || "Untitled Journey" })}
                       disabled={deletingId === draft.id}
                     >
                       {deletingId === draft.id ? (
@@ -333,6 +370,19 @@ export default function MyContentPage() {
           )}
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={deleteModal?.isOpen || false}
+        onClose={() => setDeleteModal(null)}
+        onConfirm={confirmDelete}
+        title={`Delete ${deleteModal?.type === "journey" ? "Journey" : "One-Shot"}?`}
+        message={<>Are you sure you want to delete <strong>&quot;{deleteModal?.title}&quot;</strong>? This action cannot be undone.</>}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        loading={deletingId !== null}
+      />
     </div>
   );
 }

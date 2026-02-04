@@ -9,6 +9,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    const session = await getAuthSession();
 
     const user = await db.user.findUnique({
       where: { id },
@@ -17,6 +18,7 @@ export async function GET(
         name: true,
         image: true,
         bio: true,
+        isPublic: true,
         createdAt: true,
         _count: {
           select: {
@@ -29,6 +31,22 @@ export async function GET(
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // Check if profile is private and viewer is not the owner
+    const isOwner = session?.user?.id === id;
+    if (!user.isPublic && !isOwner) {
+      return NextResponse.json({
+        id: user.id,
+        name: user.name,
+        image: user.image,
+        isPublic: false,
+        isPrivate: true,
+        journeyCount: 0,
+        oneShotCount: 0,
+        totalVotes: 0,
+        journeys: [],
+      });
     }
 
     // Get user's journeys
@@ -83,12 +101,17 @@ export async function PUT(
     }
 
     const body = await req.json();
-    const { name, bio } = body;
+    const { name, bio, isPublic } = body;
+
+    const updateData: { name?: string; bio?: string; isPublic?: boolean } = {};
+    if (name !== undefined) updateData.name = name;
+    if (bio !== undefined) updateData.bio = bio;
+    if (isPublic !== undefined) updateData.isPublic = isPublic;
 
     const user = await db.user.update({
       where: { id },
-      data: { name, bio },
-      select: { id: true, name: true, bio: true, image: true },
+      data: updateData,
+      select: { id: true, name: true, bio: true, image: true, isPublic: true },
     });
 
     return NextResponse.json(user);

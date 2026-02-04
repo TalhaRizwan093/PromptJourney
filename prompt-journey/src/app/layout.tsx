@@ -26,14 +26,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" className="dark" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-zinc-950 text-zinc-100 min-h-screen`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-zinc-950 dark:bg-zinc-950 light:bg-gray-50 text-zinc-100 dark:text-zinc-100 light:text-zinc-900 min-h-screen`}
       >
         <Providers>
           <div className="relative min-h-screen bg-grid">
             {/* Background gradient orbs */}
-            <div className="fixed inset-0 overflow-hidden pointer-events-none">
+            <div className="fixed inset-0 overflow-hidden pointer-events-none dark:opacity-100 light:opacity-30">
               <div className="absolute -top-40 -right-40 w-80 h-80 bg-violet-500/20 rounded-full blur-3xl" />
               <div className="absolute top-1/2 -left-40 w-80 h-80 bg-indigo-500/20 rounded-full blur-3xl" />
               <div className="absolute -bottom-40 right-1/3 w-80 h-80 bg-fuchsia-500/10 rounded-full blur-3xl" />

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/lib/db";
 
 export async function GET(
   request: Request,
@@ -11,7 +11,7 @@ export async function GET(
     // Fetch unpublished/draft journeys for this user
     // For now, we don't have a draft status field in the schema,
     // so this returns empty. Future enhancement: add 'published' boolean to Journey model
-    const drafts = await prisma.journey.findMany({
+    const drafts = await db.journey.findMany({
       where: { 
         authorId: id,
         // Future: add published: false filter when schema is updated

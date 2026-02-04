@@ -74,7 +74,8 @@ export function JourneyCard({ journey, compact = false }: JourneyCardProps) {
     ? journey.tags.split(",").filter(Boolean)
     : journey.tags;
 
-  const handleVote = async (value: 1 | -1) => {
+  const handleVote = async (value: 1 | -1, e: React.MouseEvent) => {
+    e.stopPropagation();
     if (!session) {
       window.location.href = "/login";
       return;
@@ -100,10 +101,14 @@ export function JourneyCard({ journey, compact = false }: JourneyCardProps) {
     }
   };
 
-  const handleCardClick = (e: React.MouseEvent) => {
+  const handleCardClick = async (e: React.MouseEvent) => {
     // Only navigate if not clicking on a button or link
     const target = e.target as HTMLElement;
     if (target.closest('button') || target.closest('a')) return;
+    // Increment view count
+    try {
+      await fetch(`/api/journeys/${journey.id}`, { method: "GET" });
+    } catch {}
     window.location.href = `/journeys/${journey.id}`;
   };
 
@@ -157,7 +162,7 @@ export function JourneyCard({ journey, compact = false }: JourneyCardProps) {
 
       <div className="flex">
         {/* Vote Column */}
-        <div className="flex flex-col items-center gap-1 p-4 border-r border-zinc-800">
+        <div className="flex flex-col items-center gap-1 p-4 border-r border-zinc-800 dark:border-zinc-800 light:border-zinc-200">
           <Button 
             variant="ghost" 
             size="icon" 
@@ -167,7 +172,7 @@ export function JourneyCard({ journey, compact = false }: JourneyCardProps) {
                 ? "text-violet-400 bg-violet-500/20" 
                 : "text-zinc-500 hover:text-violet-400 hover:bg-violet-500/10"
             )}
-            onClick={() => handleVote(1)}
+            onClick={(e) => handleVote(1, e)}
             disabled={isVoting}
           >
             <ArrowUp className="h-5 w-5" />
@@ -187,7 +192,7 @@ export function JourneyCard({ journey, compact = false }: JourneyCardProps) {
                 ? "text-red-400 bg-red-500/20" 
                 : "text-zinc-500 hover:text-red-400 hover:bg-red-500/10"
             )}
-            onClick={() => handleVote(-1)}
+            onClick={(e) => handleVote(-1, e)}
             disabled={isVoting}
           >
             <ArrowDown className="h-5 w-5" />

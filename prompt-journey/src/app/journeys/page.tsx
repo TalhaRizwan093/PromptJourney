@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { JourneyCard } from "@/components/journey/journey-card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -49,10 +50,19 @@ function JourneyCardSkeleton() {
   );
 }
 
-export default function JourneysPage() {
+function JourneysContent() {
+  const searchParams = useSearchParams();
   const [sort, setSort] = useState<SortType>("hot");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+
+  // Get search from URL params
+  useEffect(() => {
+    const searchQuery = searchParams.get("search");
+    if (searchQuery) {
+      setSearch(searchQuery);
+    }
+  }, [searchParams]);
 
   const { journeys, total, pages, isLoading, error } = useJourneys({ sort, search, page });
 
@@ -234,5 +244,21 @@ export default function JourneysPage() {
         </>
       )}
     </div>
+  );
+}
+
+export default function JourneysPage() {
+  return (
+    <Suspense fallback={
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
+        <div className="space-y-4">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <JourneyCardSkeleton key={i} />
+          ))}
+        </div>
+      </div>
+    }>
+      <JourneysContent />
+    </Suspense>
   );
 }

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
+import { useTheme } from "@/components/providers";
 import {
   Settings,
   User,
@@ -21,6 +22,7 @@ import {
   Eye,
   EyeOff,
   Moon,
+  Sun,
   AlertTriangle,
 } from "lucide-react";
 import Link from "next/link";
@@ -29,6 +31,7 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function SettingsPage() {
   const { data: session, status, update } = useSession();
+  const { theme, setTheme } = useTheme();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -46,9 +49,10 @@ export default function SettingsPage() {
   
   // Privacy settings
   const [profilePublic, setProfilePublic] = useState(true);
+  const [savingPrivacy, setSavingPrivacy] = useState(false);
 
   // Fetch user profile data
-  const { data: userData } = useSWR(
+  const { data: userData, mutate } = useSWR(
     session?.user?.id ? `/api/users/${session.user.id}` : null,
     fetcher
   );
@@ -58,6 +62,7 @@ export default function SettingsPage() {
     if (userData) {
       setName(userData.name || "");
       setBio(userData.bio || "");
+      setProfilePublic(userData.isPublic !== false);
     }
   }, [userData]);
 
@@ -108,6 +113,25 @@ export default function SettingsPage() {
       console.error("Failed to save settings:", error);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleTogglePrivacy = async () => {
+    setSavingPrivacy(true);
+    try {
+      const res = await fetch(`/api/users/${session.user?.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isPublic: !profilePublic }),
+      });
+      if (res.ok) {
+        setProfilePublic(!profilePublic);
+        mutate();
+      }
+    } catch (error) {
+      console.error("Failed to update privacy:", error);
+    } finally {
+      setSavingPrivacy(false);
     }
   };
 
@@ -285,12 +309,33 @@ export default function SettingsPage() {
                 <Moon className="h-5 w-5 text-zinc-400" />
                 <div>
                   <p className="text-sm font-medium text-zinc-300">Dark Mode</p>
-                  <p className="text-xs text-zinc-500">Currently the only available theme</p>
+                  <p className="text-xs text-zinc-500">Easy on the eyes in low light</p>
                 </div>
               </div>
-              <Button variant="secondary" size="sm" disabled>
-                <Check className="h-4 w-4 mr-1" />
-                Active
+              <Button 
+                variant={theme === "dark" ? "default" : "outline"} 
+                size="sm"
+                onClick={() => setTheme("dark")}
+              >
+                {theme === "dark" && <Check className="h-4 w-4 mr-1" />}
+                {theme === "dark" ? "Active" : "Select"}
+              </Button>
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Sun className="h-5 w-5 text-zinc-400" />
+                <div>
+                  <p className="text-sm font-medium text-zinc-300">Light Mode</p>
+                  <p className="text-xs text-zinc-500">Classic bright appearance</p>
+                </div>
+              </div>
+              <Button 
+                variant={theme === "light" ? "default" : "outline"} 
+                size="sm"
+                onClick={() => setTheme("light")}
+              >
+                {theme === "light" && <Check className="h-4 w-4 mr-1" />}
+                {theme === "light" ? "Active" : "Select"}
               </Button>
             </div>
           </CardContent>
@@ -319,9 +364,10 @@ export default function SettingsPage() {
               <Button 
                 variant={profilePublic ? "default" : "outline"} 
                 size="sm"
-                onClick={() => setProfilePublic(!profilePublic)}
+                onClick={handleTogglePrivacy}
+                disabled={savingPrivacy}
               >
-                {profilePublic ? "Public" : "Private"}
+                {savingPrivacy ? <Loader2 className="h-4 w-4 animate-spin" /> : profilePublic ? "Public" : "Private"}
               </Button>
             </div>
 

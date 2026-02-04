@@ -5,12 +5,19 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatDate(date: Date | string): string {
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(new Date(date));
+export function formatDate(date: Date | string | undefined | null): string {
+  if (!date) return "Unknown";
+  try {
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return "Unknown";
+    return new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }).format(d);
+  } catch {
+    return "Unknown";
+  }
 }
 
 export function formatRelativeTime(date: Date | string): string {
