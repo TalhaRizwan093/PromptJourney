@@ -65,8 +65,9 @@ export async function GET(req: Request) {
       db.journey.count({ where }),
     ]);
 
+    type JourneyWithRelations = typeof journeys[number];
     return NextResponse.json({
-      journeys: journeys.map((j) => ({
+      journeys: journeys.map((j: JourneyWithRelations) => ({
         ...j,
         commentCount: j._count.comments,
         award: j.awards[0] || null,

@@ -68,12 +68,13 @@ export async function GET(
       _sum: { voteCount: true },
     });
 
+    type JourneyWithRelations = typeof journeys[number];
     return NextResponse.json({
       ...user,
       journeyCount: user._count.journeys,
       oneShotCount: user._count.oneShots,
       totalVotes: totalVotes._sum.voteCount || 0,
-      journeys: journeys.map((j) => ({
+      journeys: journeys.map((j: JourneyWithRelations) => ({
         ...j,
         commentCount: j._count.comments,
         award: j.awards[0] || null,
