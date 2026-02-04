@@ -35,7 +35,7 @@ export async function GET(req: Request) {
 
     // Group by type and period
     type AwardGroup = Record<string, { type: string; period: string; winners: { rank: number; journey: unknown }[] }>;
-    const grouped = awards.reduce<AwardGroup>((acc, award) => {
+    const grouped = awards.reduce((acc: AwardGroup, award) => {
       const key = `${award.type}-${award.period}`;
       if (!acc[key]) {
         acc[key] = { type: award.type, period: award.period, winners: [] };
@@ -45,7 +45,7 @@ export async function GET(req: Request) {
         journey: award.journey,
       });
       return acc;
-    }, {});
+    }, {} as AwardGroup);
 
     return NextResponse.json(Object.values(grouped));
   } catch (error) {
