@@ -40,6 +40,7 @@ export async function GET(
         id: user.id,
         name: user.name,
         image: user.image,
+        createdAt: user.createdAt,
         isPublic: false,
         isPrivate: true,
         journeyCount: 0,

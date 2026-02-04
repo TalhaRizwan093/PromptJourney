@@ -15,6 +15,7 @@ import {
   Bookmark,
   BookmarkCheck,
   Share2,
+  Check,
   Trophy,
 } from "lucide-react";
 import { cn, formatRelativeTime } from "@/lib/utils";
@@ -112,7 +113,10 @@ export function JourneyCard({ journey, compact = false }: JourneyCardProps) {
     window.location.href = `/journeys/${journey.id}`;
   };
 
-  const handleShare = async () => {
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  const handleShare = async (e: React.MouseEvent) => {
+    e.stopPropagation();
     const url = `${window.location.origin}/journeys/${journey.id}`;
     if (navigator.share) {
       try {
@@ -122,11 +126,13 @@ export function JourneyCard({ journey, compact = false }: JourneyCardProps) {
       }
     } else {
       await navigator.clipboard.writeText(url);
-      alert('Link copied to clipboard!');
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2000);
     }
   };
 
-  const handleBookmark = () => {
+  const handleBookmark = (e: React.MouseEvent) => {
+    e.stopPropagation();
     const bookmarks = JSON.parse(localStorage.getItem("bookmarkedJourneys") || "[]");
     if (isBookmarked) {
       const updated = bookmarks.filter((id: string) => id !== journey.id);
@@ -263,17 +269,20 @@ export function JourneyCard({ journey, compact = false }: JourneyCardProps) {
                   "h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity",
                   isBookmarked && "opacity-100 text-violet-400"
                 )}
-                onClick={(e) => { e.stopPropagation(); handleBookmark(); }}
+                onClick={handleBookmark}
               >
                 {isBookmarked ? <BookmarkCheck className="h-4 w-4" /> : <Bookmark className="h-4 w-4" />}
               </Button>
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={(e) => { e.stopPropagation(); handleShare(); }}
+                className={cn(
+                  "h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity",
+                  copiedLink && "text-green-400"
+                )}
+                onClick={handleShare}
               >
-                <Share2 className="h-4 w-4" />
+                {copiedLink ? <Check className="h-4 w-4" /> : <Share2 className="h-4 w-4" />}
               </Button>
             </div>
           </CardFooter>

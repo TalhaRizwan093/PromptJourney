@@ -30,71 +30,275 @@ body {
 
 /* Light mode specific overrides */
 .light {
-  background: #fafafa;
-  color: #09090b;
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.light body {
+  background: #f8fafc;
+  color: #0f172a;
 }
 
 .light .bg-zinc-900 {
-  background-color: #ffffff;
+  background-color: #ffffff !important;
+}
+
+.light .bg-zinc-900\/50 {
+  background-color: rgba(255, 255, 255, 0.8) !important;
 }
 
 .light .bg-zinc-950 {
-  background-color: #f4f4f5;
+  background-color: #f1f5f9 !important;
+}
+
+.light .bg-zinc-950\/80 {
+  background-color: rgba(241, 245, 249, 0.9) !important;
+}
+
+.light .bg-zinc-950\/95 {
+  background-color: rgba(241, 245, 249, 0.95) !important;
 }
 
 .light .bg-zinc-800 {
-  background-color: #e4e4e7;
+  background-color: #e2e8f0 !important;
+}
+
+.light .bg-zinc-800\/50 {
+  background-color: rgba(226, 232, 240, 0.5) !important;
 }
 
 .light .border-zinc-800 {
-  border-color: #e4e4e7;
+  border-color: #e2e8f0 !important;
 }
 
 .light .border-zinc-700 {
-  border-color: #d4d4d8;
+  border-color: #cbd5e1 !important;
 }
 
 .light .text-zinc-100 {
-  color: #18181b;
+  color: #0f172a !important;
+}
+
+.light .text-zinc-200 {
+  color: #1e293b !important;
 }
 
 .light .text-zinc-300 {
-  color: #3f3f46;
+  color: #334155 !important;
 }
 
 .light .text-zinc-400 {
-  color: #52525b;
+  color: #475569 !important;
 }
 
 .light .text-zinc-500 {
-  color: #71717a;
+  color: #64748b !important;
+}
+
+.light .text-zinc-600 {
+  color: #94a3b8 !important;
 }
 
 .light .hover\:bg-zinc-800:hover {
-  background-color: #e4e4e7;
+  background-color: #e2e8f0 !important;
 }
 
 .light .hover\:text-zinc-100:hover {
-  color: #18181b;
+  color: #0f172a !important;
+}
+
+.light .bg-violet-500\/20 {
+  background-color: rgba(139, 92, 246, 0.15) !important;
+}
+
+.light .bg-violet-500\/10 {
+  background-color: rgba(139, 92, 246, 0.1) !important;
+}
+
+.light .bg-red-500\/10 {
+  background-color: rgba(239, 68, 68, 0.1) !important;
+}
+
+.light .bg-red-500\/20 {
+  background-color: rgba(239, 68, 68, 0.15) !important;
+}
+
+/* Light mode Card styles */
+.light [class*="Card"] {
+  background-color: #ffffff;
+  border-color: #e2e8f0;
 }
 
 /* Light mode scrollbar */
 .light ::-webkit-scrollbar-track {
-  background: #f4f4f5;
+  background: #f1f5f9;
 }
 
 .light ::-webkit-scrollbar-thumb {
-  background: #d4d4d8;
+  background: #cbd5e1;
 }
 
 .light ::-webkit-scrollbar-thumb:hover {
-  background: #a1a1aa;
+  background: #94a3b8;
 }
 
 /* Light mode glass effect */
 .light .glass {
-  background: rgba(255, 255, 255, 0.8);
-  border: 1px solid rgba(228, 228, 231, 0.8);
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+/* Light mode background grid */
+.light .bg-grid {
+  background-image: 
+    linear-gradient(rgba(139, 92, 246, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(139, 92, 246, 0.05) 1px, transparent 1px);
+  background-size: 50px 50px;
+}
+
+/* Light mode button active states */
+.light .text-violet-400 {
+  color: #7c3aed !important;
+}
+
+.light .text-violet-300 {
+  color: #8b5cf6 !important;
+}
+
+.light .hover\:text-violet-300:hover {
+  color: #7c3aed !important;
+}
+
+.light .hover\:text-violet-400:hover {
+  color: #6d28d9 !important;
+}
+
+.light .text-red-400 {
+  color: #dc2626 !important;
+}
+
+.light .text-green-400 {
+  color: #16a34a !important;
+}
+
+.light .text-emerald-400 {
+  color: #10b981 !important;
+}
+
+.light .text-cyan-400 {
+  color: #0891b2 !important;
+}
+
+.light .text-yellow-400 {
+  color: #ca8a04 !important;
+}
+
+.light .text-orange-400 {
+  color: #ea580c !important;
+}
+
+/* Light mode input/form elements */
+.light input,
+.light textarea,
+.light select {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+.light input::placeholder,
+.light textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+.light input:focus,
+.light textarea:focus,
+.light select:focus {
+  border-color: #8b5cf6 !important;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15) !important;
+}
+
+/* Light mode badges */
+.light .bg-zinc-700 {
+  background-color: #e2e8f0 !important;
+}
+
+.light .hover\:bg-zinc-700:hover {
+  background-color: #cbd5e1 !important;
+}
+
+/* Light mode dividers */
+.light .divide-zinc-800 > * + * {
+  border-color: #e2e8f0 !important;
+}
+
+/* Light mode active/selected button backgrounds */
+.light .bg-violet-600 {
+  background-color: #7c3aed !important;
+}
+
+.light .bg-violet-500 {
+  background-color: #8b5cf6 !important;
+}
+
+.light .hover\:bg-violet-600:hover {
+  background-color: #6d28d9 !important;
+}
+
+/* Light mode outline buttons */
+.light .border-zinc-600 {
+  border-color: #94a3b8 !important;
+}
+
+.light .border-zinc-700\/50 {
+  border-color: rgba(203, 213, 225, 0.5) !important;
+}
+
+/* Light mode navigation active states */
+.light .bg-zinc-800\/80 {
+  background-color: rgba(226, 232, 240, 0.8) !important;
+}
+
+/* Light mode modals/dialogs */
+.light .bg-zinc-900\/80 {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+}
+
+/* Light mode code blocks */
+.light pre,
+.light code {
+  background-color: #f1f5f9 !important;
+  color: #334155 !important;
+}
+
+/* Light mode dropdown/menu */
+.light [role="menu"],
+.light [data-radix-popper-content-wrapper] > div {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* Light mode selection */
+.light ::selection {
+  background: rgba(139, 92, 246, 0.25);
+  color: #0f172a;
+}
+
+/* Light mode skeleton loading */
+.light .animate-pulse {
+  background-color: #e2e8f0 !important;
+}
+
+/* Light mode primary button text */
+.light .bg-linear-to-r.from-violet-600 {
+  color: #ffffff !important;
+}
+
+/* Light mode shadow adjustments */
+.light .shadow-lg,
+.light .shadow-xl,
+.light .shadow-2xl {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04) !important;
 }
 
 /* Custom scrollbar */
