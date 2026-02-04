@@ -299,7 +299,7 @@ export default function ProfilePage({ params }: { params: Promise<{ id: string }
               )}
             </div>
           ) : (
-            user.journeys.map((journey: { id: string; title: string; description: string; tags: string; voteCount: number; viewCount: number; commentCount?: number; createdAt: string; author: { id: string; name: string | null; image: string | null }; award?: { type: string; rank: number } | null }) => (
+            user.journeys.map((journey: { id: string; title: string; description: string; tags: string; voteCount: number; viewCount: number; commentCount: number; createdAt: string; author: { id: string; name: string | null; image: string | null }; award?: { type: string; rank: number } | null }) => (
               <div key={journey.id} className="relative group">
                 <JourneyCard journey={journey} />
                 {isOwner && (
