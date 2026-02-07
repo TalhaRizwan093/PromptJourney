@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,7 @@ import {
   Loader2,
   X,
   GripVertical,
+  Upload,
 } from "lucide-react";
 import Link from "next/link";
 import { RichEditor } from "@/components/ui/rich-editor";
@@ -30,8 +31,9 @@ interface JourneyStep {
   notes: string;
 }
 
-export default function NewJourneyPage() {
+function NewJourneyContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: session, status } = useSession();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -42,6 +44,26 @@ export default function NewJourneyPage() {
   const [steps, setSteps] = useState<JourneyStep[]>([
     { id: "1", title: "", prompt: "", result: "", notes: "" },
   ]);
+  const [importLoaded, setImportLoaded] = useState(false);
+
+  // Load imported data from sessionStorage if redirected from import page
+  useEffect(() => {
+    if (searchParams.get("from") === "import" && !importLoaded) {
+      try {
+        const raw = sessionStorage.getItem("importedJourney");
+        if (raw) {
+          const data = JSON.parse(raw);
+          if (data.title) setTitle(data.title);
+          if (data.description) setDescription(data.description);
+          if (data.steps?.length) setSteps(data.steps);
+          sessionStorage.removeItem("importedJourney");
+          setImportLoaded(true);
+        }
+      } catch {
+        // ignore parse errors
+      }
+    }
+  }, [searchParams, importLoaded]);
 
   const addStep = () => {
     setSteps([
@@ -154,6 +176,12 @@ export default function NewJourneyPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Link href="/import">
+            <Button variant="outline" size="sm">
+              <Upload className="h-4 w-4 mr-2" />
+              Import
+            </Button>
+          </Link>
           <Button variant="outline" onClick={() => handleSubmit(false)} disabled={isLoading}>
             <Save className="h-4 w-4 mr-2" />
             Save Draft
@@ -319,5 +347,19 @@ export default function NewJourneyPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function NewJourneyPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="container mx-auto px-4 py-16 flex justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-violet-500" />
+        </div>
+      }
+    >
+      <NewJourneyContent />
+    </Suspense>
   );
 }

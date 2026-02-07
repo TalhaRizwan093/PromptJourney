@@ -17,6 +17,7 @@ import {
   LogOut,
   Settings,
   FolderOpen,
+  Upload,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -27,6 +28,7 @@ const navLinks = [
   { href: "/journeys", label: "Journeys", icon: Sparkles },
   { href: "/one-shots", label: "One-Shots", icon: Zap },
   { href: "/awards", label: "Awards", icon: Trophy },
+  { href: "/import", label: "Import", icon: Upload },
 ];
 
 export function Navbar() {
