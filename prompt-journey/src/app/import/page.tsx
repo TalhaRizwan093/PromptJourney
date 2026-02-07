@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import {
   Upload,
   FileText,
@@ -16,6 +17,7 @@ import {
   CheckCircle,
   AlertCircle,
   ArrowRight,
+  Link2,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -27,17 +29,18 @@ interface ImportedStep {
   notes: string;
 }
 
-type Tab = "upload" | "paste";
+type Tab = "url" | "upload" | "paste";
 
 export default function ImportPage() {
   const router = useRouter();
   const { data: session, status } = useSession();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [activeTab, setActiveTab] = useState<Tab>("paste");
+  const [activeTab, setActiveTab] = useState<Tab>("url");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [pasteText, setPasteText] = useState("");
+  const [shareUrl, setShareUrl] = useState("");
 
   // Result state
   const [importResult, setImportResult] = useState<{
@@ -113,6 +116,34 @@ export default function ImportPage() {
     router.push("/journeys/new?from=import");
   };
 
+  const handleUrlImport = async () => {
+    if (!shareUrl.trim()) {
+      setError("Please enter a share link");
+      return;
+    }
+
+    setIsLoading(true);
+    setError("");
+    setImportResult(null);
+
+    try {
+      const res = await fetch("/api/import/url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: shareUrl.trim() }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      setImportResult(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to import from URL");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   if (status === "loading") {
     return (
       <div className="container mx-auto px-4 py-16 flex justify-center">
@@ -155,7 +186,19 @@ export default function ImportPage() {
       </div>
 
       {/* Tab Switcher */}
-      <div className="flex gap-2 mb-6">
+      <div className="flex gap-2 mb-6 flex-wrap">
+        <Button
+          variant={activeTab === "url" ? "default" : "outline"}
+          onClick={() => {
+            setActiveTab("url");
+            setError("");
+            setImportResult(null);
+          }}
+          className="gap-2"
+        >
+          <Link2 className="h-4 w-4" />
+          Share Link
+        </Button>
         <Button
           variant={activeTab === "paste" ? "default" : "outline"}
           onClick={() => {
@@ -178,7 +221,7 @@ export default function ImportPage() {
           className="gap-2"
         >
           <FileText className="h-4 w-4" />
-          Upload ChatGPT Export
+          Upload Export File
         </Button>
       </div>
 
@@ -188,6 +231,82 @@ export default function ImportPage() {
           <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
           <span className="whitespace-pre-line">{error}</span>
         </div>
+      )}
+
+      {/* URL Tab */}
+      {activeTab === "url" && !importResult && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Import from Share Link</CardTitle>
+            <p className="text-sm text-zinc-400">
+              Paste a shared conversation link from ChatGPT, Claude, or Gemini.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-3">
+              <Input
+                value={shareUrl}
+                onChange={(e) => setShareUrl(e.target.value)}
+                placeholder="https://chatgpt.com/share/... or https://claude.ai/share/..."
+                className="font-mono text-sm"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleUrlImport();
+                  }
+                }}
+              />
+              <div className="flex justify-between items-center">
+                <p className="text-xs text-zinc-500">
+                  Supports ChatGPT, Claude & Gemini share links
+                </p>
+                <Button onClick={handleUrlImport} disabled={isLoading}>
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Fetching...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4 mr-2" />
+                      Import
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-lg bg-zinc-800/50 space-y-3">
+              <h3 className="text-sm font-medium text-zinc-300">How to get share links:</h3>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-violet-400">ChatGPT</p>
+                  <ol className="text-xs text-zinc-400 space-y-0.5 list-decimal list-inside">
+                    <li>Open any conversation</li>
+                    <li>Click share icon (top right)</li>
+                    <li>Click &quot;Copy Link&quot;</li>
+                  </ol>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-orange-400">Claude</p>
+                  <ol className="text-xs text-zinc-400 space-y-0.5 list-decimal list-inside">
+                    <li>Open any conversation</li>
+                    <li>Click share icon</li>
+                    <li>Click &quot;Create share link&quot;</li>
+                  </ol>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-blue-400">Gemini</p>
+                  <ol className="text-xs text-zinc-400 space-y-0.5 list-decimal list-inside">
+                    <li>Open any conversation</li>
+                    <li>Click &quot;Share&quot; button</li>
+                    <li>Click &quot;Create public link&quot;</li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Paste Tab */}
