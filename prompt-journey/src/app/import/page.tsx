@@ -20,6 +20,7 @@ import {
   Link2,
 } from "lucide-react";
 import Link from "next/link";
+import { MarkdownPreview } from "@/components/ui/markdown-preview";
 
 interface ImportedStep {
   id: string;
@@ -447,14 +448,12 @@ export default function ImportPage() {
                       </p>
                       <div className="text-xs text-zinc-400">
                         <span className="text-violet-400 font-medium">Prompt: </span>
-                        {step.prompt.substring(0, 200)}
-                        {step.prompt.length > 200 ? "..." : ""}
+                        <span>{step.prompt.substring(0, 200)}{step.prompt.length > 200 ? "..." : ""}</span>
                       </div>
                       {step.result && (
                         <div className="text-xs text-zinc-500">
-                          <span className="text-emerald-400 font-medium">Response: </span>
-                          {step.result.substring(0, 200)}
-                          {step.result.length > 200 ? "..." : ""}
+                          <span className="text-emerald-400 font-medium block mb-1">Response: </span>
+                          <MarkdownPreview content={step.result} maxLength={400} className="text-xs text-zinc-400" />
                         </div>
                       )}
                     </div>

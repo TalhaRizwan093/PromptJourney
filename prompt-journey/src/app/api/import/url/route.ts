@@ -78,8 +78,14 @@ export async function POST(req: Request) {
 
     const message = error instanceof Error ? error.message : "Failed to import from URL";
 
-    // Check for common fetch errors
-    if (message.includes("Failed to fetch") || message.includes("HTTP")) {
+    // Pass through platform-specific descriptive errors (Claude Cloudflare, Gemini consent)
+    if (
+      message.includes("Cloudflare") ||
+      message.includes("cookie consent") ||
+      message.includes("Paste Conversation") ||
+      message.includes("Failed to fetch") ||
+      message.includes("HTTP")
+    ) {
       return NextResponse.json({ error: message }, { status: 400 });
     }
 

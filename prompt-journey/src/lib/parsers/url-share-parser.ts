@@ -77,13 +77,20 @@ async function fetchPage(url: string): Promise<string> {
   const timeout = setTimeout(() => controller.abort(), 15000);
 
   try {
+    // For Gemini, add consent cookies to bypass the consent redirect
+    const isGemini = url.includes("gemini.google.com");
+    const headers: Record<string, string> = {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      "Accept-Language": "en-US,en;q=0.9",
+    };
+    if (isGemini) {
+      headers["Cookie"] = "CONSENT=PENDING+987; SOCS=CAESEwgDEgk2MjczOTEyOTYaAmVuIAEaBgiA_J-6Bg";
+    }
+
     const res = await fetch(url, {
       signal: controller.signal,
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9",
-      },
+      headers,
       redirect: "follow",
     });
 
@@ -376,40 +383,65 @@ function parseClaudeShare(html: string, _url: string): ParsedSharedChat {
   const messages: ParsedMessage[] = [];
   let title = "Claude Shared Conversation";
 
-  // Strategy 1: React Router turbo-stream (if Claude migrates to it)
-  const turboResult = extractFromTurboStream(html);
-  if (turboResult && turboResult.messages.length > 0) {
-    return {
-      platform: "claude",
-      title: turboResult.title || title,
-      messages: turboResult.messages,
-    };
+  // Detect Cloudflare challenge / bot protection (Claude uses this)
+  if (
+    html.length < 20000 &&
+    (html.includes("Just a moment...") ||
+      html.includes("challenge-platform") ||
+      html.includes("cf-browser-verification"))
+  ) {
+    throw new Error(
+      "Claude's share page is protected by Cloudflare bot detection and cannot be accessed from a server. " +
+      "Please use the \"Paste Conversation\" tab instead: open the Claude share link in your browser, " +
+      "select all the conversation text (Ctrl+A), copy it (Ctrl+C), and paste it into the paste tab."
+    );
   }
 
-  // Strategy 2: Look for embedded JSON data (SvelteKit / Next / Nuxt)
-  const jsonPatterns = [
-    /<script[^>]*id="__(?:NEXT|NUXT|SVELTE)_DATA__"[^>]*>([\s\S]*?)<\/script>/,
-    /<script[^>]*>window\.__(?:data|INITIAL_STATE__|claude)__?\s*=\s*(\{[\s\S]*?\});?\s*<\/script>/,
-    /<script[^>]*type="application\/json"[^>]*data-sveltekit[^>]*>([\s\S]*?)<\/script>/,
-  ];
+  // Strategy 1: Parse Next.js RSC chunks from <script> tags
+  // Claude uses Next.js App Router with RSC (React Server Components)
+  const rscMessages = extractFromClaudeRSC(html);
+  if (rscMessages.length > 0) {
+    messages.push(...rscMessages);
+  }
 
-  for (const pattern of jsonPatterns) {
-    const match = html.match(pattern);
-    if (match) {
-      try {
-        const data = JSON.parse(match[1]);
-        extractClaudeMessages(data, messages);
-        if (messages.length > 0) {
-          title = extractTitle(data) || title;
-          break;
+  // Strategy 2: React Router turbo-stream
+  if (messages.length === 0) {
+    const turboResult = extractFromTurboStream(html);
+    if (turboResult && turboResult.messages.length > 0) {
+      return {
+        platform: "claude",
+        title: turboResult.title || title,
+        messages: turboResult.messages,
+      };
+    }
+  }
+
+  // Strategy 3: Look for embedded JSON data (SvelteKit / Next / Nuxt)
+  if (messages.length === 0) {
+    const jsonPatterns = [
+      /<script[^>]*id="__(?:NEXT|NUXT|SVELTE)_DATA__"[^>]*>([\s\S]*?)<\/script>/,
+      /<script[^>]*>window\.__(?:data|INITIAL_STATE__|claude)__?\s*=\s*(\{[\s\S]*?\});?\s*<\/script>/,
+      /<script[^>]*type="application\/json"[^>]*data-sveltekit[^>]*>([\s\S]*?)<\/script>/,
+    ];
+
+    for (const pattern of jsonPatterns) {
+      const match = html.match(pattern);
+      if (match) {
+        try {
+          const data = JSON.parse(match[1]);
+          extractClaudeMessages(data, messages);
+          if (messages.length > 0) {
+            title = extractTitle(data) || title;
+            break;
+          }
+        } catch {
+          continue;
         }
-      } catch {
-        continue;
       }
     }
   }
 
-  // Strategy 3: Try ALL JSON script tags (Claude sometimes embeds data in generic script tags)
+  // Strategy 4: Try ALL JSON script tags
   if (messages.length === 0) {
     const jsonScripts = html.matchAll(
       /<script[^>]*type="application\/json"[^>]*>([\s\S]*?)<\/script>/g
@@ -431,9 +463,8 @@ function parseClaudeShare(html: string, _url: string): ParsedSharedChat {
     }
   }
 
-  // Strategy 4: Parse HTML structure with Claude-specific selectors
+  // Strategy 5: Parse HTML structure
   if (messages.length === 0) {
-    // Claude share pages have user/assistant turn divs with various class names
     const turnPattern =
       /class="[^"]*(?:human|user)-(?:turn|message|content)[^"]*"[^>]*>([\s\S]*?)(?=class="[^"]*(?:assistant|ai)-(?:turn|message|content)|class="[^"]*(?:human|user)-(?:turn|message|content)|$)/gi;
     const assistantPattern =
@@ -456,7 +487,7 @@ function parseClaudeShare(html: string, _url: string): ParsedSharedChat {
     }
   }
 
-  // Strategy 5: Look for data-role or role attributes
+  // Strategy 6: data-role attributes
   if (messages.length === 0) {
     const rolePattern =
       /(?:data-)?role="(human|user|assistant)"[^>]*>([\s\S]*?)(?=(?:data-)?role="(?:human|user|assistant)"|$)/gi;
@@ -468,9 +499,19 @@ function parseClaudeShare(html: string, _url: string): ParsedSharedChat {
     }
   }
 
-  // Strategy 6: Generic fallback
+  // Strategy 7: Generic fallback
   if (messages.length === 0) {
     extractFromGenericHtml(html, messages);
+  }
+
+  // If still no messages, throw a helpful error
+  if (messages.length === 0) {
+    throw new Error(
+      "Could not extract conversation data from this Claude share link. " +
+      "Claude share pages load content dynamically which makes server-side parsing difficult. " +
+      "Please use the \"Paste Conversation\" tab instead: open the share link in your browser, " +
+      "select all text (Ctrl+A), copy (Ctrl+C), and paste it here."
+    );
   }
 
   // Title from page
@@ -481,6 +522,97 @@ function parseClaudeShare(html: string, _url: string): ParsedSharedChat {
   }
 
   return { platform: "claude", title, messages };
+}
+
+/**
+ * Extract messages from Claude's RSC (React Server Components) chunks.
+ * Claude uses Next.js App Router which embeds data in self.__next_f.push() calls.
+ */
+function extractFromClaudeRSC(html: string): ParsedMessage[] {
+  const messages: ParsedMessage[] = [];
+
+  // Extract all <script> contents and look for RSC data
+  const scriptPattern = /<script[^>]*>([\s\S]*?)<\/script>/gi;
+  let scriptMatch;
+  let allRscContent = "";
+
+  while ((scriptMatch = scriptPattern.exec(html)) !== null) {
+    const content = scriptMatch[1];
+    if (!content.includes("self.__next_f")) continue;
+
+    // Extract push() call data
+    const pushPattern = /self\.__next_f\.push\(\[(\d+),"([\s\S]*?)"\]\)/g;
+    let pushMatch;
+    while ((pushMatch = pushPattern.exec(content)) !== null) {
+      let data = pushMatch[2];
+      // Unescape JS string
+      data = data
+        .replace(/\\u003c/g, "<")
+        .replace(/\\u003e/g, ">")
+        .replace(/\\u0026/g, "&")
+        .replace(/\\u0027/g, "'")
+        .replace(/\\n/g, "\n")
+        .replace(/\\t/g, "\t")
+        .replace(/\\"/g, '"')
+        .replace(/\\\\/g, "\\");
+      allRscContent += data;
+    }
+  }
+
+  if (!allRscContent) return messages;
+
+  // Look for conversation data in the RSC content
+  // Claude RSC pages embed conversation as JSON within the component tree
+  // Try to find chat_messages or similar patterns
+  const chatMsgPattern = /"chat_messages"\s*:\s*(\[[\s\S]*?\])/;
+  const chatMsgMatch = allRscContent.match(chatMsgPattern);
+  if (chatMsgMatch) {
+    try {
+      const msgs = JSON.parse(chatMsgMatch[1]) as Record<string, unknown>[];
+      for (const msg of msgs) {
+        const role = msg.sender as string;
+        const content = extractTextContent(msg);
+        const mappedRole = role === "human" ? "user" : role === "assistant" ? "assistant" : null;
+        if (mappedRole && content.trim()) {
+          messages.push({ role: mappedRole, content: content.trim() });
+        }
+      }
+    } catch {
+      // Continue
+    }
+  }
+
+  // Also try to find conversation data in RSC component props
+  if (messages.length === 0) {
+    // Look for text blocks that appear to be user prompts followed by assistant responses
+    // Claude share pages embed the rendered messages in specific component structures
+    const senderPattern = /"sender"\s*:\s*"(human|assistant)"/g;
+    let senderMatch;
+    const senderPositions: { role: string; pos: number }[] = [];
+    while ((senderMatch = senderPattern.exec(allRscContent)) !== null) {
+      senderPositions.push({ role: senderMatch[1], pos: senderMatch.index });
+    }
+
+    for (const sp of senderPositions) {
+      // Try to extract the content near this sender reference
+      const nearby = allRscContent.substring(sp.pos, sp.pos + 50000);
+      const contentMatch = nearby.match(/"(?:text|content)"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+      if (contentMatch) {
+        const text = contentMatch[1]
+          .replace(/\\n/g, "\n")
+          .replace(/\\"/g, '"')
+          .replace(/\\\\/g, "\\");
+        if (text.trim().length > 5) {
+          messages.push({
+            role: sp.role === "human" ? "user" : "assistant",
+            content: text.trim(),
+          });
+        }
+      }
+    }
+  }
+
+  return messages;
 }
 
 function extractClaudeMessages(data: unknown, messages: ParsedMessage[]): void {
@@ -531,34 +663,123 @@ function extractClaudeMessages(data: unknown, messages: ParsedMessage[]): void {
 
 // ─── Gemini Parser ────────────────────────────────────────────────
 
+/**
+ * Parse Gemini's WIZ_global_data.DnVkpd format.
+ * Format: prompt SEP1 image_url SEP1 dark_image_url SEP1 response SEP2 prompt2 SEP1 ...
+ * SEP1 = ✧ (U+2727) and SEP2 = ░ (U+2591), but encoding may garble them.
+ * We detect separators by looking at non-ASCII chars adjacent to URLs.
+ */
+function parseGeminiDnVkpd(raw: string): ParsedMessage[] {
+  const messages: ParsedMessage[] = [];
+  if (!raw || raw.length < 10) return messages;
+
+  // Try to detect the actual separator characters by finding what's between
+  // text and the first gstatic.com URL
+  const firstUrlIdx = raw.indexOf("https://www.gstatic.com/lamda/");
+  if (firstUrlIdx < 1) return messages;
+
+  // The separator is the character(s) immediately before the URL
+  // Walk backwards from the URL to find the separator boundary
+  let sepEnd = firstUrlIdx;
+  let sepStart = sepEnd - 1;
+  while (sepStart >= 0 && raw.charCodeAt(sepStart) > 127) {
+    sepStart--;
+  }
+  sepStart++; // move back to first non-ASCII
+
+  const fieldSep = raw.substring(sepStart, sepEnd);
+  if (!fieldSep) return messages;
+
+  // Now split by field separator
+  const fields = raw.split(fieldSep);
+
+  // Fields alternate: prompt, url1, url2, response, prompt2, url1, url2, response2, ...
+  // But there's also a turn separator between groups
+  // Detect turn separator: it's a non-ASCII char(s) at the start of prompt2 that isn't a URL
+  const turns: { prompt: string; response: string }[] = [];
+  let i = 0;
+
+  while (i < fields.length) {
+    let prompt = fields[i] || "";
+    // Check if prompt starts with a turn separator (non-ASCII chars)
+    // by finding a secondary separator pattern
+    const firstAscii = prompt.search(/[\x20-\x7E]/);
+    if (firstAscii > 0) {
+      prompt = prompt.substring(firstAscii);
+    }
+    prompt = prompt.trim();
+
+    // Next 2 fields are image URLs (or empty), skip them
+    const url1 = fields[i + 1] || "";
+    const url2 = fields[i + 2] || "";
+    let responseRaw = fields[i + 3] || "";
+
+    // If response ends with turn separator + next prompt, split them
+    // The turn separator is non-ASCII chars at the end before the next prompt starts
+    const response = responseRaw.trim();
+
+    if (prompt) {
+      messages.push({ role: "user", content: prompt });
+      if (response) {
+        messages.push({ role: "assistant", content: stripHtml(response) });
+      }
+    }
+
+    i += 4; // move to next group: prompt, url1, url2, response
+  }
+
+  return messages;
+}
+
 function parseGeminiShare(html: string, _url: string): ParsedSharedChat {
   const messages: ParsedMessage[] = [];
   let title = "Gemini Shared Conversation";
 
-  // Strategy 0: React Router turbo-stream (generic fallback)
-  const turboResult = extractFromTurboStream(html);
-  if (turboResult && turboResult.messages.length > 0) {
-    return {
-      platform: "gemini",
-      title: turboResult.title || title,
-      messages: turboResult.messages,
-    };
-  }
-
-  // Strategy 1: Look for embedded data in script tags (WIZ data or AF_initDataCallback)
-  const wizPattern = /AF_initDataCallback\(\{[^}]*data:\s*([\s\S]*?)\}\s*\)/g;
-  let match;
-  while ((match = wizPattern.exec(html)) !== null) {
+  // Strategy 1: WIZ_global_data.DnVkpd (Gemini embeds share data here)
+  const wizMatch = html.match(/window\.WIZ_global_data\s*=\s*(\{[\s\S]*?\})\s*;?\s*<\/script>/);
+  if (wizMatch) {
     try {
-      const data = JSON.parse(match[1]);
-      extractGeminiFromWiz(data, messages);
-      if (messages.length > 0) break;
+      const wizData = JSON.parse(wizMatch[1]);
+      const dnVkpd = wizData["DnVkpd"] as string | undefined;
+      if (dnVkpd && dnVkpd.length > 20) {
+        const dnMessages = parseGeminiDnVkpd(dnVkpd);
+        if (dnMessages.length > 0) {
+          messages.push(...dnMessages);
+        }
+      }
     } catch {
-      continue;
+      // Continue to other strategies
     }
   }
 
-  // Strategy 2: Embedded JSON
+  // Strategy 2: React Router turbo-stream (generic fallback)
+  if (messages.length === 0) {
+    const turboResult = extractFromTurboStream(html);
+    if (turboResult && turboResult.messages.length > 0) {
+      return {
+        platform: "gemini",
+        title: turboResult.title || title,
+        messages: turboResult.messages,
+      };
+    }
+  }
+
+  // Strategy 3: AF_initDataCallback
+  if (messages.length === 0) {
+    const wizPattern = /AF_initDataCallback\(\{[^}]*data:\s*([\s\S]*?)\}\s*\)/g;
+    let match;
+    while ((match = wizPattern.exec(html)) !== null) {
+      try {
+        const data = JSON.parse(match[1]);
+        extractGeminiFromWiz(data, messages);
+        if (messages.length > 0) break;
+      } catch {
+        continue;
+      }
+    }
+  }
+
+  // Strategy 4: Embedded JSON
   if (messages.length === 0) {
     const jsonScripts = html.matchAll(
       /<script[^>]*(?:type="application\/json"|nonce)[^>]*>([\s\S]*?)<\/script>/g
@@ -574,9 +795,9 @@ function parseGeminiShare(html: string, _url: string): ParsedSharedChat {
     }
   }
 
-  // Strategy 3: Parse HTML structure with Gemini-specific patterns
+  // Strategy 5: Parse HTML structure with Gemini-specific patterns
   if (messages.length === 0) {
-    // Gemini uses message-content divs with model/user markers
+    let match;
     const turnPattern =
       /class="[^"]*(?:query-text|user-query|prompt-text)[^"]*"[^>]*>([\s\S]*?)(?=class="[^"]*(?:response-text|model-response|markdown)[^"]*"|class="[^"]*(?:query-text|user-query|prompt-text)[^"]*"|$)/gi;
     const responsePattern =
@@ -598,8 +819,9 @@ function parseGeminiShare(html: string, _url: string): ParsedSharedChat {
     }
   }
 
-  // Strategy 4: Look for data attributes  
+  // Strategy 6: data attributes  
   if (messages.length === 0) {
+    let match;
     const msgPattern =
       /data-(?:message-)?(?:author-)?role="(user|model|assistant)"[^>]*>([\s\S]*?)(?=data-(?:message-)?(?:author-)?role="|$)/gi;
     while ((match = msgPattern.exec(html)) !== null) {
@@ -609,16 +831,25 @@ function parseGeminiShare(html: string, _url: string): ParsedSharedChat {
     }
   }
 
-  // Strategy 5: Generic fallback
+  // Strategy 7: Generic fallback
   if (messages.length === 0) {
     extractFromGenericHtml(html, messages);
+  }
+
+  // Detect consent redirect page (Gemini redirects to Google consent)
+  if (messages.length === 0 && html.includes("consent.google.com")) {
+    throw new Error(
+      "Gemini's share page requires cookie consent and cannot be fully accessed from a server. " +
+      "Please use the \"Paste Conversation\" tab instead: open the Gemini share link in your browser, " +
+      "select all text (Ctrl+A), copy (Ctrl+C), and paste it here."
+    );
   }
 
   // Title
   const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
   if (titleMatch) {
     const t = titleMatch[1].replace(/\s*[-|]?\s*(?:Google\s*)?Gemini\s*$/i, "").trim();
-    if (t && t.length > 2) title = t;
+    if (t && t.length > 2 && !t.includes("direct access to Google")) title = t;
   }
 
   return { platform: "gemini", title, messages };
