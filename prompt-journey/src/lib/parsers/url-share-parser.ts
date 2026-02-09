@@ -97,13 +97,167 @@ async function fetchPage(url: string): Promise<string> {
   }
 }
 
+// ─── React Router Turbo-Stream Parser (ChatGPT 2025+ format) ─────
+
+/**
+ * Resolves a turbo-stream descriptor object from the flat array.
+ * Format: {"_N": M, ...} where N = position of key string, M = position of value.
+ */
+function resolveTurboObj(
+  arr: unknown[],
+  descriptor: unknown
+): Record<string, unknown> | null {
+  if (!descriptor || typeof descriptor !== "object" || Array.isArray(descriptor)) return null;
+  const result: Record<string, unknown> = {};
+  for (const [refKey, valPos] of Object.entries(descriptor as Record<string, unknown>)) {
+    if (!refKey.startsWith("_")) continue;
+    const keyPos = parseInt(refKey.slice(1));
+    if (isNaN(keyPos) || keyPos < 0 || keyPos >= arr.length) continue;
+    const key = arr[keyPos];
+    if (typeof key !== "string") continue;
+    if (typeof valPos === "number") {
+      if (valPos < 0) {
+        result[key] = null;
+      } else if (valPos < arr.length) {
+        result[key] = arr[valPos];
+      }
+    }
+  }
+  return result;
+}
+
+/**
+ * Resolves turbo-stream array elements (position references → actual values).
+ */
+function resolveTurboArray(arr: unknown[], refs: unknown[]): unknown[] {
+  return refs.map((ref) => {
+    if (typeof ref === "number" && ref >= 0 && ref < arr.length) {
+      return arr[ref];
+    }
+    return ref;
+  });
+}
+
+function extractFromTurboStream(
+  html: string
+): { title: string; messages: ParsedMessage[] } | null {
+  // ChatGPT uses React Router streaming: window.__reactRouterContext.streamController.enqueue("...")
+  const enqueuePattern = /streamController\.enqueue\("((?:[^"\\]|\\.)*)"\)/g;
+  let match;
+
+  while ((match = enqueuePattern.exec(html)) !== null) {
+    try {
+      // Double-parse: JS string unescape → JSON array
+      const unescaped = JSON.parse('"' + match[1] + '"');
+      const arr = JSON.parse(unescaped) as unknown[];
+      if (!Array.isArray(arr) || arr.length < 50) continue;
+
+      let title = "";
+      const messages: ParsedMessage[] = [];
+
+      // Find title
+      for (let i = 0; i < arr.length - 1; i++) {
+        if (arr[i] === "title" && typeof arr[i + 1] === "string" && !title) {
+          const t = arr[i + 1] as string;
+          if (t.length > 0 && t.length < 300) title = t;
+        }
+      }
+
+      // Find "linear_conversation" (ordered node list) — preferred
+      let linearConversation: unknown[] | null = null;
+      for (let i = 0; i < arr.length - 1; i++) {
+        if (arr[i] === "linear_conversation" && Array.isArray(arr[i + 1])) {
+          linearConversation = arr[i + 1] as unknown[];
+          break;
+        }
+      }
+
+      // Extract messages from the node list
+      const extractFromNodes = (nodeRefs: unknown[]) => {
+        for (const nodeRef of nodeRefs) {
+          if (typeof nodeRef !== "number" || nodeRef < 0 || nodeRef >= arr.length) continue;
+          const nodeDescriptor = arr[nodeRef];
+          const node = resolveTurboObj(arr, nodeDescriptor);
+          if (!node || !node.message) continue;
+
+          const msg = resolveTurboObj(arr, node.message);
+          if (!msg || !msg.author) continue;
+
+          const author = resolveTurboObj(arr, msg.author);
+          if (!author) continue;
+          const role = author.role as string;
+          if (role !== "user" && role !== "assistant") continue;
+
+          const content = resolveTurboObj(arr, msg.content);
+          if (!content) continue;
+          const partsRaw = content.parts;
+          if (!Array.isArray(partsRaw)) continue;
+
+          const resolvedParts = resolveTurboArray(arr, partsRaw);
+          const textParts: string[] = [];
+          for (const part of resolvedParts) {
+            if (typeof part === "string" && part.trim().length > 0) {
+              textParts.push(part.trim());
+            }
+          }
+          if (textParts.length > 0) {
+            messages.push({
+              role: role as "user" | "assistant",
+              content: textParts.join("\n"),
+            });
+          }
+        }
+      };
+
+      if (linearConversation && linearConversation.length > 0) {
+        extractFromNodes(linearConversation);
+      } else {
+        // Fallback: use "mapping" (unordered dict of nodes)
+        for (let i = 0; i < arr.length - 1; i++) {
+          if (
+            arr[i] === "mapping" &&
+            typeof arr[i + 1] === "object" &&
+            arr[i + 1] !== null &&
+            !Array.isArray(arr[i + 1])
+          ) {
+            const mappingDescriptor = arr[i + 1] as Record<string, unknown>;
+            const nodeRefs = Object.values(mappingDescriptor).filter(
+              (v): v is number => typeof v === "number" && v >= 0
+            );
+            extractFromNodes(nodeRefs);
+            break;
+          }
+        }
+      }
+
+      if (messages.length > 0) {
+        return { title, messages };
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
+}
+
 // ─── ChatGPT Parser ───────────────────────────────────────────────
 
 function parseChatGPTShare(html: string, _url: string): ParsedSharedChat {
   const messages: ParsedMessage[] = [];
   let title = "ChatGPT Shared Conversation";
 
-  // Strategy 1: Parse __NEXT_DATA__ JSON (most reliable)
+  // Strategy 1: React Router turbo-stream (current ChatGPT format, 2025+)
+  const turboResult = extractFromTurboStream(html);
+  if (turboResult && turboResult.messages.length > 0) {
+    return {
+      platform: "chatgpt",
+      title: turboResult.title || title,
+      messages: turboResult.messages,
+    };
+  }
+
+  // Strategy 2: Parse __NEXT_DATA__ JSON (older format, pre-2025)
   const nextDataMatch = html.match(
     /<script\s+id="__NEXT_DATA__"\s+type="application\/json"[^>]*>([\s\S]*?)<\/script>/
   );
@@ -155,7 +309,7 @@ function parseChatGPTShare(html: string, _url: string): ParsedSharedChat {
     }
   }
 
-  // Strategy 2: Parse JSON-LD or other embedded JSON
+  // Strategy 3: Parse JSON-LD or other embedded JSON
   if (messages.length === 0) {
     const jsonScripts = html.matchAll(
       /<script[^>]*type="application\/json"[^>]*>([\s\S]*?)<\/script>/g
@@ -171,7 +325,7 @@ function parseChatGPTShare(html: string, _url: string): ParsedSharedChat {
     }
   }
 
-  // Strategy 3: Parse HTML structure
+  // Strategy 4: Parse HTML structure with data-message-author-role
   if (messages.length === 0) {
     parseHtmlMessages(html, messages, {
       userSelectors: [
@@ -186,7 +340,7 @@ function parseChatGPTShare(html: string, _url: string): ParsedSharedChat {
     });
   }
 
-  // Strategy 4: Look for alternating divs with specific patterns
+  // Strategy 5: Look for alternating divs with specific patterns
   if (messages.length === 0) {
     const turnPattern =
       /data-message-author-role="(user|assistant)"[^>]*>[\s\S]*?<div[^>]*class="[^"]*markdown[^"]*"[^>]*>([\s\S]*?)(?=<div[^>]*data-message-author-role|$)/g;
@@ -199,7 +353,7 @@ function parseChatGPTShare(html: string, _url: string): ParsedSharedChat {
     }
   }
 
-  // Strategy 5: Generic text extraction as last resort
+  // Strategy 6: Generic text extraction as last resort
   if (messages.length === 0) {
     extractFromGenericHtml(html, messages);
   }
@@ -222,7 +376,17 @@ function parseClaudeShare(html: string, _url: string): ParsedSharedChat {
   const messages: ParsedMessage[] = [];
   let title = "Claude Shared Conversation";
 
-  // Strategy 1: Look for embedded JSON data (Nuxt/SvelteKit/Next)
+  // Strategy 1: React Router turbo-stream (if Claude migrates to it)
+  const turboResult = extractFromTurboStream(html);
+  if (turboResult && turboResult.messages.length > 0) {
+    return {
+      platform: "claude",
+      title: turboResult.title || title,
+      messages: turboResult.messages,
+    };
+  }
+
+  // Strategy 2: Look for embedded JSON data (SvelteKit / Next / Nuxt)
   const jsonPatterns = [
     /<script[^>]*id="__(?:NEXT|NUXT|SVELTE)_DATA__"[^>]*>([\s\S]*?)<\/script>/,
     /<script[^>]*>window\.__(?:data|INITIAL_STATE__|claude)__?\s*=\s*(\{[\s\S]*?\});?\s*<\/script>/,
@@ -245,13 +409,35 @@ function parseClaudeShare(html: string, _url: string): ParsedSharedChat {
     }
   }
 
-  // Strategy 2: Parse HTML structure with Claude-specific selectors
+  // Strategy 3: Try ALL JSON script tags (Claude sometimes embeds data in generic script tags)
   if (messages.length === 0) {
-    // Claude share pages typically have user/assistant turn divs
+    const jsonScripts = html.matchAll(
+      /<script[^>]*type="application\/json"[^>]*>([\s\S]*?)<\/script>/g
+    );
+    for (const m of jsonScripts) {
+      try {
+        const data = JSON.parse(m[1]);
+        extractClaudeMessages(data, messages);
+        if (messages.length === 0) {
+          extractMessagesFromJson(data, messages);
+        }
+        if (messages.length > 0) {
+          title = extractTitle(data) || title;
+          break;
+        }
+      } catch {
+        continue;
+      }
+    }
+  }
+
+  // Strategy 4: Parse HTML structure with Claude-specific selectors
+  if (messages.length === 0) {
+    // Claude share pages have user/assistant turn divs with various class names
     const turnPattern =
-      /class="[^"]*(?:human|user)-turn[^"]*"[^>]*>([\s\S]*?)(?=class="[^"]*(?:assistant|ai)-turn|class="[^"]*(?:human|user)-turn|$)/gi;
+      /class="[^"]*(?:human|user)-(?:turn|message|content)[^"]*"[^>]*>([\s\S]*?)(?=class="[^"]*(?:assistant|ai)-(?:turn|message|content)|class="[^"]*(?:human|user)-(?:turn|message|content)|$)/gi;
     const assistantPattern =
-      /class="[^"]*(?:assistant|ai)-turn[^"]*"[^>]*>([\s\S]*?)(?=class="[^"]*(?:human|user)-turn|class="[^"]*(?:assistant|ai)-turn|$)/gi;
+      /class="[^"]*(?:assistant|ai)-(?:turn|message|content)[^"]*"[^>]*>([\s\S]*?)(?=class="[^"]*(?:human|user)-(?:turn|message|content)|class="[^"]*(?:assistant|ai)-(?:turn|message|content)|$)/gi;
 
     let match;
     const userTurns: string[] = [];
@@ -270,7 +456,7 @@ function parseClaudeShare(html: string, _url: string): ParsedSharedChat {
     }
   }
 
-  // Strategy 3: Look for data-role or role attributes
+  // Strategy 5: Look for data-role or role attributes
   if (messages.length === 0) {
     const rolePattern =
       /(?:data-)?role="(human|user|assistant)"[^>]*>([\s\S]*?)(?=(?:data-)?role="(?:human|user|assistant)"|$)/gi;
@@ -282,7 +468,7 @@ function parseClaudeShare(html: string, _url: string): ParsedSharedChat {
     }
   }
 
-  // Strategy 4: Generic fallback
+  // Strategy 6: Generic fallback
   if (messages.length === 0) {
     extractFromGenericHtml(html, messages);
   }
@@ -348,6 +534,16 @@ function extractClaudeMessages(data: unknown, messages: ParsedMessage[]): void {
 function parseGeminiShare(html: string, _url: string): ParsedSharedChat {
   const messages: ParsedMessage[] = [];
   let title = "Gemini Shared Conversation";
+
+  // Strategy 0: React Router turbo-stream (generic fallback)
+  const turboResult = extractFromTurboStream(html);
+  if (turboResult && turboResult.messages.length > 0) {
+    return {
+      platform: "gemini",
+      title: turboResult.title || title,
+      messages: turboResult.messages,
+    };
+  }
 
   // Strategy 1: Look for embedded data in script tags (WIZ data or AF_initDataCallback)
   const wizPattern = /AF_initDataCallback\(\{[^}]*data:\s*([\s\S]*?)\}\s*\)/g;
@@ -445,6 +641,16 @@ function extractGeminiFromWiz(data: unknown, messages: ParsedMessage[]): void {
 
 function parseGenericShare(html: string): ParsedSharedChat {
   const messages: ParsedMessage[] = [];
+
+  // Try turbo-stream first
+  const turboResult = extractFromTurboStream(html);
+  if (turboResult && turboResult.messages.length > 0) {
+    return {
+      platform: "unknown",
+      title: turboResult.title || "Shared Conversation",
+      messages: turboResult.messages,
+    };
+  }
 
   // Try all JSON strategies
   const jsonScripts = html.matchAll(
