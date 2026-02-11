@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SmartContent } from "@/components/ui/smart-content";
 import {
   ArrowUp,
   ArrowDown,
@@ -312,8 +313,8 @@ export default function JourneyDetailPage({ params }: { params: Promise<{ id: st
                       )}
                     </Button>
                   </div>
-                  <div className="p-4 rounded-xl bg-zinc-900/50 border border-zinc-800 text-sm text-zinc-300 prose prose-invert prose-sm max-w-none">
-                    <pre className="whitespace-pre-wrap font-mono">{step.result}</pre>
+                  <div className="p-4 rounded-xl bg-zinc-900/50 border border-zinc-800 text-sm text-zinc-300">
+                    <SmartContent content={step.result} />
                   </div>
                 </div>
 
