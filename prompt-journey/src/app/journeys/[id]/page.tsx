@@ -322,7 +322,7 @@ export default function JourneyDetailPage({ params }: { params: Promise<{ id: st
                 {step.notes && (
                   <div className="p-4 rounded-xl bg-violet-500/5 border border-violet-500/20">
                     <h4 className="text-sm font-medium text-violet-300 mb-2">Author Notes</h4>
-                    <p className="text-sm text-zinc-400">{step.notes}</p>
+                    <SmartContent content={step.notes} className="text-sm text-zinc-400" />
                   </div>
                 )}
               </CardContent>
